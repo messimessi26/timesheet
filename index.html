@@ -162,9 +162,15 @@ var LEFT='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="cu
 var RIGHT='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
 
 /* ---------- estado ---------- */
-function empty(){return {v:1,clientes:[],projetos:[],ativs:['Reunião','Análise','Elaboração de documentos','Pesquisa','E-mails e ligações','Audiência / visita','Deslocamento','Administrativo','Outro'],
-  lanc:[],ativo:null,cfg:{metaDia:8,arred:0,dias:[1,2,3,4,5]}};}
-function migrate(d){if(!d||!d.v)return null;var e=empty();Object.keys(e).forEach(function(k){if(d[k]==null)d[k]=e[k];});Object.keys(e.cfg).forEach(function(k){if(d.cfg[k]==null)d.cfg[k]=e.cfg[k];});return d;}
+// atividades do time-sheet do Espaider (Gerson Branco Advogados), com o código usado lá
+var ESP_ATIVS=['1.003 - ATENDIMENTO AO CLIENTE','1.004 - REUNIÃO','1.005 - DEFESA ADMINISTRATIVA','1.101 - ELABORAÇÃO/ANALISE/REVISÃO DE CONTRATOS','1.102 - PROVIDÊNCIAS COM TERCEIROS','1.103 - REUNIÃO INTERNA',
+  '1.104 - PROVIDÊNCIAS ADMINISTRATIVAS','1.105 - ELABORAÇÃO/REVISÃO DE ATOS SOCIETÁRIOS','1.106 - PROVIDÊNCIAS SOCIETÁRIAS','1.107 - ELABORAÇÃO DE PARECER','1.108 - ATIVIDADE NOTARIAL/REGISTRAL',
+  '1.109 - ELABORAÇÃO/REVISÃO/RESPOSTA DE NOTIFICAÇÕES','1.110 - ARBITRAGEM','2.010 - ATUAÇÃO JUDICIAL PRESENCIAL/VIRTUAL','2.017 - ELABORAÇÃO/REVISÃO DE PETIÇÃO','2.018 - ANÁLISE DE PROCESSOS','2.021 - OUTRAS PROVIDÊNCIAS PROCESSUAIS/EXTRAJUDICIAIS'];
+var OLD_ATIVS=['Reunião','Análise','Elaboração de documentos','Pesquisa','E-mails e ligações','Audiência / visita','Deslocamento','Administrativo','Outro'];
+function empty(){return {v:2,clientes:[],projetos:[],ativs:ESP_ATIVS.slice(),lanc:[],ativo:null,cfg:{metaDia:8,arred:0,dias:[1,2,3,4,5]}};}
+function migrate(d){if(!d||!d.v)return null;var e=empty();Object.keys(e).forEach(function(k){if(d[k]==null)d[k]=e[k];});Object.keys(e.cfg).forEach(function(k){if(d.cfg[k]==null)d.cfg[k]=e.cfg[k];});
+  if(d.v<2){if(JSON.stringify(d.ativs)===JSON.stringify(OLD_ATIVS))d.ativs=ESP_ATIVS.slice();d.v=2;}
+  return d;}
 var S=null,ui={sel:TODAY,f:{cliente:'',projeto:'',ativ:'',desc:'',fat:true},per:'semana',de:'',ate:'',fCli:''},R={v:'hoje',arg:''};
 function cli(id){return S.clientes.find(function(c){return c.id===id;})||null;}
 function proj(id){return S.projetos.find(function(p){return p.id===id;})||null;}
@@ -234,7 +240,7 @@ function cliOptions(sel,vazio){return '<option value="">'+(vazio||'Interno / sem
 function projOptions(cid,sel){var l=S.projetos.filter(function(p){return (p.cliente||'')===(cid||'');});return '<option value="">'+(l.length?'Sem projeto':'Nenhum projeto deste cliente')+'</option>'+l.map(function(p){return '<option value="'+p.id+'"'+(p.id===sel?' selected':'')+'>'+esc((p.codigo?p.codigo+' · ':'')+p.nome)+'</option>';}).join('');}
 function ativOptions(sel){return '<option value="">Atividade…</option>'+S.ativs.map(function(a){return '<option'+(a===sel?' selected':'')+'>'+esc(a)+'</option>';}).join('');}
 function lancLi(l,opts){opts=opts||{};
-  return '<li><i class="dotc" style="background:'+cliCor(l.cliente)+'"></i><span class="n"><b>'+esc(lancTitulo(l))+'</b><span>'+[opts.data?fmtD(l.data):'',l.ini?l.ini+(l.fim?'–'+l.fim:''):'',l.ativ||'',l.desc||'',l.fat?'':'não faturável'].filter(Boolean).map(esc).join(' · ')+'</span></span><span class="v">'+hm(l.min)+'</span>'+
+  return '<li><i class="dotc" style="background:'+cliCor(l.cliente)+'"></i><span class="n"><b>'+esc(lancTitulo(l))+'</b><span>'+[opts.data?fmtD(l.data):'',l.ini?l.ini+(l.fim?'–'+l.fim:''):'',l.ativ||'',l.desc||'',l.fat?'':'não faturável'].filter(Boolean).map(esc).join(' · ')+'</span>'+(l.esp?'<span style="color:var(--ok);font-weight:600">✓ no Espaider</span>':'')+'</span><span class="v">'+hm(l.min)+'</span>'+
     (opts.noAct?'':'<button class="ib" data-act="continuar" data-id="'+l.id+'" aria-label="Continuar: iniciar cronômetro com os mesmos dados" title="Continuar">'+PLAY+'</button><button class="ib" data-act="editar" data-id="'+l.id+'" aria-label="Editar lançamento">'+PEN+'</button>')+'</li>';}
 function metaBar(min,meta){var p=meta>0?Math.min(min/meta*100,100):0;return '<div class="bar"><div style="width:'+p+'%;background:'+(min>=meta?'var(--ok)':'var(--acc)')+'"></div></div>';}
 
@@ -257,6 +263,8 @@ function vHoje(){
   var l=doDia(TODAY),tot=somaMin(l),meta=(+S.cfg.metaDia||0)*60;
   h+='<section class="card"><div class="head"><h2>Hoje, '+fmtD(TODAY,true)+'</h2><span class="small">meta '+hm(meta)+'</span></div><div class="big">'+hm(tot)+(meta&&ehUtil(TODAY)?' <small>'+(tot>=meta?'meta batida ✓':'faltam '+hm(meta-tot))+'</small>':'')+'</div>'+(meta?metaBar(tot,meta):'')+
     (l.length?'<ul class="list">'+l.map(function(x){return lancLi(x);}).join('')+'</ul>':'<div class="empty">Nada lançado hoje.</div>')+'</section>';
+  var pendAll=S.lanc.filter(function(x){return !x.esp;});
+  if(pendAll.length)h+='<a class="card" href="#relatorios" style="text-decoration:none;color:inherit;flex-direction:row;align-items:center"><span style="font-size:20px">📤</span><span style="flex:1"><b>'+pendAll.length+' lançamento'+(pendAll.length>1?'s':'')+' ainda não '+(pendAll.length>1?'estão':'está')+' no Espaider</b><br><span class="small">'+hm(somaMin(pendAll))+' no total · ver em Relatórios</span></span></a>';
   var dom=addDays(TODAY,-toD(TODAY).getDay()),sem=S.lanc.filter(function(x){return x.data>=dom&&x.data<=addDays(dom,6);}),ms=S.cfg.dias.length*meta;
   h+='<section class="card"><div class="head"><h2>Esta semana</h2><a class="small" href="#semana">Ver semana</a></div><div class="big">'+hm(somaMin(sem))+(ms?' <small>de '+hm(ms)+'</small>':'')+'</div>'+(ms?metaBar(somaMin(sem),ms):'')+'</section>';
   return h;
@@ -306,18 +314,22 @@ function vRelatorios(){
     h+='<div style="display:flex;gap:8px;flex-wrap:wrap" class="noprint"><button class="btn primary" data-act="csv">Exportar para Excel (CSV)</button><button class="btn" data-act="copiar">Copiar resumo</button><button class="btn" data-act="imprimir">Imprimir / PDF</button></div>';
   }else h+='<div class="empty">Nenhum lançamento neste período.</div>';
   h+='</section>';
+  var pend=l.filter(function(x){return !x.esp;});
+  if(l.length)h+='<section class="card"><div class="head"><h2>Espaider</h2><span class="small">'+(pend.length?'<b class="" style="color:var(--warn)">'+pend.length+' pendente'+(pend.length>1?'s':'')+'</b> · '+hm(somaMin(pend)):'tudo lançado ✓')+'</span></div>'+
+    (pend.length?'<div class="small">Lançamentos deste período que ainda não estão no Espaider. Peça para o Claude lançar, ou copie a lista.'+(pend.some(function(x){return !x.desc||!x.ativ;})?' <b style="color:var(--warn)">Há lançamentos sem descrição ou sem atividade, que são obrigatórias no Espaider.</b>':'')+'</div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap" class="noprint"><button class="btn" data-act="copiarEsp">Copiar pendentes</button><button class="btn" data-act="marcarEsp">Marcar todos como lançados</button></div>':'')+'</section>';
   if(l.length)h+='<section class="card"><h2>Lançamentos ('+l.length+')</h2><ul class="list">'+l.slice().reverse().map(function(x){return lancLi(x,{data:true});}).join('')+'</ul></section>';
   return h;
 }
 function vCadastros(){
   var h=hdr('Cadastros','','')+runBar();
-  h+='<section class="card"><div class="head"><h2>Clientes</h2><button class="btn sm primary" data-act="novoCli">+ Cliente</button></div>'+
+  h+='<section class="card"><div class="head"><h2>Clientes</h2><button class="btn sm primary" data-act="novoCli">+ Cliente</button></div><div class="small">Use o nome igual ao do Espaider, para eu achar o cliente certo na hora de lançar. Em Projetos/casos, coloque o número da pasta ou do caso no Código.</div>'+
     (S.clientes.length?'<div class="tablewrap"><table style="min-width:420px"><thead><tr><th style="width:44px">Cor</th><th>Nome</th><th class="r" style="width:140px">Valor/hora (R$)</th><th style="width:44px"></th></tr></thead><tbody>'+
       S.clientes.map(function(c){return '<tr data-cid="'+c.id+'"><td><input type="color" data-cf="cor" value="'+esc(c.cor)+'" aria-label="Cor de '+esc(c.nome)+'" style="width:36px;height:36px;padding:0;border:0;background:none"></td><td><input type="text" data-cf="nome" value="'+esc(c.nome)+'" aria-label="Nome do cliente"></td><td><input class="num" inputmode="decimal" data-cf="valor" value="'+(c.valor?NF2.format(c.valor):'')+'" placeholder="opcional" aria-label="Valor por hora"></td><td><button class="ib" data-act="delCli" aria-label="Excluir '+esc(c.nome)+'">'+TRASH+'</button></td></tr>';}).join('')+'</tbody></table></div>':'<div class="empty">Nenhum cliente. Sem cliente, os lançamentos ficam como “Interno”.</div>')+'</section>';
   h+='<section class="card"><div class="head"><h2>Projetos / casos</h2><button class="btn sm primary" data-act="novoProj">+ Projeto</button></div>'+
     (S.projetos.length?'<div class="tablewrap"><table style="min-width:520px"><thead><tr><th style="width:120px">Código</th><th>Nome</th><th style="width:190px">Cliente</th><th style="width:44px"></th></tr></thead><tbody>'+
       S.projetos.map(function(p){return '<tr data-pid="'+p.id+'"><td><input type="text" data-pf="codigo" value="'+esc(p.codigo||'')+'" placeholder="opcional" aria-label="Código"></td><td><input type="text" data-pf="nome" value="'+esc(p.nome)+'" aria-label="Nome do projeto"></td><td><select data-pf="cliente" aria-label="Cliente do projeto">'+cliOptions(p.cliente)+'</select></td><td><button class="ib" data-act="delProj" aria-label="Excluir '+esc(p.nome)+'">'+TRASH+'</button></td></tr>';}).join('')+'</tbody></table></div>':'<div class="empty">Nenhum projeto. Projetos são opcionais (ex.: número do processo, contrato, campanha).</div>')+'</section>';
-  h+='<section class="card"><h2>Atividades</h2><div class="chips">'+S.ativs.map(function(a,i){return '<span class="chip" style="display:inline-flex;align-items:center;gap:4px;padding-right:4px">'+esc(a)+'<button class="ib" style="width:26px;height:26px" data-act="delAtiv" data-i="'+i+'" aria-label="Remover '+esc(a)+'">×</button></span>';}).join('')+'</div>'+
+  h+='<section class="card"><div class="head"><h2>Atividades</h2>'+(JSON.stringify(S.ativs)===JSON.stringify(ESP_ATIVS)?'<span class="small">iguais às do Espaider ✓</span>':'<button class="btn sm" data-act="ativsEsp">Usar as do Espaider</button>')+'</div><div class="chips">'+S.ativs.map(function(a,i){return '<span class="chip" style="display:inline-flex;align-items:center;gap:4px;padding-right:4px">'+esc(a)+'<button class="ib" style="width:26px;height:26px" data-act="delAtiv" data-i="'+i+'" aria-label="Remover '+esc(a)+'">×</button></span>';}).join('')+'</div>'+
     '<div style="display:flex;gap:8px"><input class="in" id="novaAtiv" placeholder="Nova atividade" style="max-width:260px"><button class="btn" data-act="addAtiv">Adicionar</button></div></section>';
   return h;
 }
@@ -374,6 +386,7 @@ function openLanc(id,data){
     '<label class="field">Atividade<select name="ativ">'+ativOptions(d.ativ)+'</select></label>'+
     '<label class="field">Descrição<input type="text" name="desc" list="dlDesc" value="'+esc(d.desc||'')+'"></label>'+
     '<label class="chk"><input type="checkbox" name="fat"'+(d.fat?' checked':'')+'> Faturável</label>'+
+    '<label class="chk"><input type="checkbox" name="esp"'+(d.esp?' checked':'')+'> Já lançado no Espaider</label>'+
     '<div class="actions">'+(l?'<button class="btn ghost" value="del" formnovalidate style="color:var(--warn);margin-right:auto">Excluir</button>':'')+'<button class="btn" value="cancel" formnovalidate>Cancelar</button><button class="btn primary" value="ok">Salvar</button></div>';
   dlg.returnValue='';dlg.showModal();
 }
@@ -389,7 +402,10 @@ form.addEventListener('submit',function(e){
   var fd=new FormData(form),ini=String(fd.get('ini')||''),fim=String(fd.get('fim')||''),min=0;
   if(ini&&fim){min=t2m(fim)-t2m(ini);if(min<0)min+=1440;}else min=parseDur(fd.get('dur'));
   if(!(min>0)){e.preventDefault();alert('Informe a duração (ex.: 1:30) ou o horário de início e fim.');return;}
-  var o={data:String(fd.get('data')||TODAY),ini:ini,fim:fim||(ini?m2t(t2m(ini)+min):''),min:Math.round(min),cliente:String(fd.get('cliente')||''),projeto:String(fd.get('projeto')||''),ativ:String(fd.get('ativ')||''),desc:String(fd.get('desc')||'').trim(),fat:!!fd.get('fat')};
+  if(!String(fd.get('desc')||'').trim()){e.preventDefault();alert('Escreva uma descrição: ela é obrigatória no time-sheet do Espaider.');return;}
+  if(!fd.get('ativ')&&!confirm('Sem atividade. No Espaider a atividade é obrigatória. Salvar assim mesmo?')){e.preventDefault();return;}
+  var antigo=editId?S.lanc.find(function(x){return x.id===editId;}):null,espV=fd.get('esp')?((antigo&&antigo.esp)||TODAY):'';
+  var o={data:String(fd.get('data')||TODAY),ini:ini,fim:fim||(ini?m2t(t2m(ini)+min):''),min:Math.round(min),cliente:String(fd.get('cliente')||''),projeto:String(fd.get('projeto')||''),ativ:String(fd.get('ativ')||''),desc:String(fd.get('desc')||'').trim(),fat:!!fd.get('fat'),esp:espV};
   if(editId){Object.assign(S.lanc.find(function(x){return x.id===editId;}),o);}else{o.id=uid();S.lanc.push(o);}
   ui.sel=o.data;commit();
 });
@@ -424,6 +440,10 @@ document.addEventListener('click',function(e){
   case 'selHoje':ui.sel=TODAY;render();return;
   case 'per':ui.per=t.dataset.k;render();return;
   case 'csv':exportCSV();return;
+  case 'copiarEsp':var pe=filtrados(periodo()).filter(function(x){return !x.esp;}),tx='Lançar no Espaider ('+pe.length+'):\n'+pe.map(function(x,i){return (i+1)+') '+fmtDY(x.data)+' | Cliente: '+cliNome(x.cliente)+' | Caso: '+(x.projeto?projNome(x.projeto):'—')+' | Atividade: '+(x.ativ||'—')+' | Horas: '+dec(x.min)+' ('+hhmm(x.min)+') | Descrição: '+(x.desc||'—');}).join('\n');
+    (navigator.clipboard?navigator.clipboard.writeText(tx):Promise.reject()).then(function(){alert('Lista copiada. Cole no chat do Claude.');},function(){prompt('Copie a lista:',tx);});return;
+  case 'marcarEsp':var pm=filtrados(periodo()).filter(function(x){return !x.esp;});if(pm.length&&confirm('Marcar '+pm.length+' lançamento(s) deste período como já lançados no Espaider?')){pm.forEach(function(x){x.esp=TODAY;});commit();}return;
+  case 'ativsEsp':if(confirm('Trocar a lista de atividades pelas 17 do Espaider? Os lançamentos já feitos não mudam.')){S.ativs=ESP_ATIVS.slice();commit();}return;
   case 'copiar':var txt=resumoTxt();(navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(function(){alert('Resumo copiado. Cole no e-mail ou no WhatsApp.');},function(){prompt('Copie o resumo:',txt);});return;
   case 'imprimir':window.print();return;
   case 'novoCli':S.clientes.push({id:uid(),nome:'Novo cliente',cor:CORES[S.clientes.length%CORES.length],valor:0});commit();setTimeout(function(){var r=document.querySelectorAll('[data-cid] input[data-cf=nome]');if(r.length){r[r.length-1].focus();r[r.length-1].select();}},0);return;
