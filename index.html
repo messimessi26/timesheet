@@ -271,7 +271,7 @@ function vHoje(){
     (p?'<button class="btn primary" data-act="retomar">▶ Voltar ao trabalho</button>'
       :'<div><div class="small" style="margin-bottom:6px">Pausar para descansar</div><div class="chips">'+[5,10,15].map(function(m){return '<button class="chip" data-act="pausar" data-min="'+m+'">☕ '+m+' min</button>';}).join('')+'<button class="chip" data-act="pausar" data-min="0">Pausa livre</button></div></div>')+
     '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn stop" data-act="parar" style="flex:1">Parar e salvar</button><button class="btn" data-act="descartarTimer">Descartar</button></div>'+(+S.cfg.arred?'<div class="small">Arredondamento: para cima, a cada '+S.cfg.arred+' min.</div>':'')+'</section>';}
-  else h+='<section class="card"><h2>Novo apontamento</h2><div class="fields">'+
+  else h+='<section class="card"><div class="focus" style="gap:12px"><div class="plantbox" style="padding:4px 8px 0">'+planta(12,'cresce',64)+'</div><div class="ftext"><h2>Novo apontamento</h2><div class="small" style="margin-top:4px">Ao iniciar o cronômetro, uma planta cresce enquanto você trabalha sem pausar. Com '+(+S.cfg.arvoreMin||25)+' min seguidos ela vira árvore. Dá para pausar para descansar.</div></div></div><div class="fields">'+
     '<label class="field">Cliente<select data-ff="cliente">'+cliOptions(f.cliente)+'</select></label>'+
     '<label class="field">Projeto / caso<select data-ff="projeto">'+projOptions(f.cliente,f.projeto)+'</select></label>'+
     '<label class="field">Atividade<select data-ff="ativ">'+ativOptions(f.ativ)+'</select></label></div>'+
