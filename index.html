@@ -97,6 +97,11 @@ td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
 .week .today b{color:var(--text);font-weight:800}
 .week .sel b{background:var(--text);color:var(--bg);font-weight:800}
 .week em{font-style:normal;font-size:11px;font-weight:700;color:var(--accText);min-height:14px;font-variant-numeric:tabular-nums}
+.focus{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.plantbox{background:linear-gradient(180deg,var(--soft) 0%,var(--card) 100%);border-radius:20px;padding:8px 14px 0;display:flex;justify-content:center}
+.ftext{flex:1;min-width:180px}
+.garden{display:flex;flex-wrap:wrap;gap:4px;align-items:flex-end}
+.garden span{display:flex;flex-direction:column;align-items:center;font-size:10px;color:var(--muted)}
 .runbar{display:flex;align-items:center;gap:10px;background:var(--acc);color:#fff;border-radius:16px;padding:10px 14px;margin-bottom:14px;text-decoration:none}
 .runbar b{font-variant-numeric:tabular-nums}
 .tabbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));width:min(520px,calc(100% - 28px));background:var(--tab);border-radius:999px;display:flex;justify-content:space-around;padding:8px;z-index:20;box-shadow:0 10px 30px rgba(0,0,0,.25)}
@@ -167,9 +172,10 @@ var ESP_ATIVS=['1.003 - ATENDIMENTO AO CLIENTE','1.004 - REUNIÃO','1.005 - DEFE
   '1.104 - PROVIDÊNCIAS ADMINISTRATIVAS','1.105 - ELABORAÇÃO/REVISÃO DE ATOS SOCIETÁRIOS','1.106 - PROVIDÊNCIAS SOCIETÁRIAS','1.107 - ELABORAÇÃO DE PARECER','1.108 - ATIVIDADE NOTARIAL/REGISTRAL',
   '1.109 - ELABORAÇÃO/REVISÃO/RESPOSTA DE NOTIFICAÇÕES','1.110 - ARBITRAGEM','2.010 - ATUAÇÃO JUDICIAL PRESENCIAL/VIRTUAL','2.017 - ELABORAÇÃO/REVISÃO DE PETIÇÃO','2.018 - ANÁLISE DE PROCESSOS','2.021 - OUTRAS PROVIDÊNCIAS PROCESSUAIS/EXTRAJUDICIAIS'];
 var OLD_ATIVS=['Reunião','Análise','Elaboração de documentos','Pesquisa','E-mails e ligações','Audiência / visita','Deslocamento','Administrativo','Outro'];
-function empty(){return {v:2,clientes:[],projetos:[],ativs:ESP_ATIVS.slice(),lanc:[],ativo:null,cfg:{metaDia:8,arred:0,dias:[1,2,3,4,5]}};}
+function empty(){return {v:2,clientes:[],projetos:[],ativs:ESP_ATIVS.slice(),lanc:[],ativo:null,jardim:[],cfg:{metaDia:8,arred:0,dias:[1,2,3,4,5],arvoreMin:25,tol:5}};}
 function migrate(d){if(!d||!d.v)return null;var e=empty();Object.keys(e).forEach(function(k){if(d[k]==null)d[k]=e[k];});Object.keys(e.cfg).forEach(function(k){if(d.cfg[k]==null)d.cfg[k]=e.cfg[k];});
   if(d.v<2){if(JSON.stringify(d.ativs)===JSON.stringify(OLD_ATIVS))d.ativs=ESP_ATIVS.slice();d.v=2;}
+  if(d.ativo&&!d.ativo.pausas){d.ativo.pausas=[];d.ativo.pausa=null;d.ativo.focoIni=d.ativo.inicio;}
   return d;}
 var S=null,ui={sel:TODAY,f:{cliente:'',projeto:'',ativ:'',desc:'',fat:true},per:'semana',de:'',ate:'',fCli:''},R={v:'hoje',arg:''};
 function cli(id){return S.clientes.find(function(c){return c.id===id;})||null;}
@@ -235,7 +241,7 @@ function barChart(labels,series,meta){
 
 /* ---------- pedaços ---------- */
 function hdr(t,l,r){return '<div class="hdr"><div>'+(l||'')+'</div><h1>'+esc(t)+'</h1><div class="r">'+(r||'')+'</div></div>';}
-function runBar(){if(!S.ativo||R.v==='hoje')return '';var a=S.ativo;return '<a class="runbar" href="#hoje"><span style="font-size:18px">⏱</span><b data-run>'+hms((Date.now()-a.inicio)/1000)+'</b><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(lancTitulo(a))+'</span><span class="btn sm" style="background:#fff;color:#111;border:0">Abrir</span></a>';}
+function runBar(){if(!S.ativo||R.v==='hoje')return '';var a=S.ativo;return '<a class="runbar" href="#hoje"'+(a.pausa?' style="background:var(--muted)"':'')+'><span style="font-size:18px">'+(a.pausa?'☕':'🌱')+'</span><b data-run>'+hms(trabSeg(a,Date.now()))+'</b><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(lancTitulo(a))+'</span><span class="btn sm" style="background:#fff;color:#111;border:0">Abrir</span></a>';}
 function cliOptions(sel,vazio){return '<option value="">'+(vazio||'Interno / sem cliente')+'</option>'+S.clientes.map(function(c){return '<option value="'+c.id+'"'+(c.id===sel?' selected':'')+'>'+esc(c.nome)+'</option>';}).join('');}
 function projOptions(cid,sel){var l=S.projetos.filter(function(p){return (p.cliente||'')===(cid||'');});return '<option value="">'+(l.length?'Sem projeto':'Nenhum projeto deste cliente')+'</option>'+l.map(function(p){return '<option value="'+p.id+'"'+(p.id===sel?' selected':'')+'>'+esc((p.codigo?p.codigo+' · ':'')+p.nome)+'</option>';}).join('');}
 function ativOptions(sel){return '<option value="">Atividade…</option>'+S.ativs.map(function(a){return '<option'+(a===sel?' selected':'')+'>'+esc(a)+'</option>';}).join('');}
@@ -249,9 +255,21 @@ function vHoje(){
   var h=hdr('Hoje','','');
   if(isEmpty(S)&&!S.ativo)h+='<section class="welcome"><h2>Seu timesheet</h2><p>Cadastre seus clientes e projetos em <a href="#cadastros">Cadastros</a> (ou comece direto: dá para lançar sem cliente). Depois use o cronômetro ou lance as horas manualmente.</p>'+(cloud.uid?'':'<div class="small">Já usa em outro aparelho? <a href="#perfil">Entre na sua conta</a> primeiro.</div>')+'</section>';
   var a=S.ativo,f=ui.f;
-  if(a){h+='<section class="card"><div class="head"><h2>Cronômetro</h2><span class="small">desde '+nowT(new Date(a.inicio))+(ds(new Date(a.inicio))!==TODAY?' de '+fmtD(ds(new Date(a.inicio))):'')+'</span></div><div class="clock" data-run>'+hms((Date.now()-a.inicio)/1000)+'</div>'+
-    '<div><b>'+esc(lancTitulo(a))+'</b><div class="small">'+esc(a.ativ||'Sem atividade')+(a.fat?'':' · não faturável')+'</div></div>'+
+  if(a){var now=Date.now(),seqMin=Math.floor(seqSeg(a,now)/60),p=a.pausa,est=estagio(seqMin);
+    h+='<section class="card"><div class="head"><h2>'+(p?'Pausa para descansar':'Focando')+'</h2><span class="small">desde '+nowT(new Date(a.inicio))+(ds(new Date(a.inicio))!==TODAY?' de '+fmtD(ds(new Date(a.inicio))):'')+((a.pausas||[]).length?' · '+a.pausas.length+' pausa'+(a.pausas.length>1?'s':''):'')+'</span></div>'+
+    '<div class="focus">';
+    if(p){var pm=p.plano||0,over=pm&&(now-p.ini)/1000>pm*60;
+      h+='<div class="plantbox">'+planta(p.seq?(S.jardim.find(function(x){return x.id===p.seq;})||{min:0}).min:0,p.murchou?'murcha':'pausa',150)+'</div>'+
+        '<div class="ftext"><div class="small">Pausa '+(pm?'de '+pm+' min':'livre')+'</div><div class="clock" style="color:'+(over?'var(--warn)':'var(--muted)')+'" data-pausa>'+(pm?'':'00:00')+'</div>'+
+        '<div class="small">'+(p.murchou?'<b style="color:var(--warn)">Sua planta murchou: a pausa passou do combinado.</b> Volte e comece uma nova.':over?'<b style="color:var(--warn)">A pausa acabou!</b> Volte em até '+(+S.cfg.tol||5)+' min para a planta não murchar.':'Descanse: a planta espera você voltar.')+'</div>'+
+        '<div class="small" style="margin-top:6px">Trabalhado: <b data-run>'+hms(trabSeg(a,now))+'</b></div></div>';}
+    else h+='<div class="plantbox" data-planta="g">'+planta(seqMin,'cresce',150)+'</div><div class="ftext"><div class="small">Trabalhado (sem as pausas)</div><div class="clock" data-run>'+hms(trabSeg(a,now))+'</div>'+
+        '<div class="small">Sem pausar: <b data-seq>'+hms(seqSeg(a,now))+'</b> · <b data-estagio>'+est.nome+'</b>'+(seqMin<(+S.cfg.arvoreMin||25)?' · vira árvore aos '+(+S.cfg.arvoreMin||25)+' min':'')+'</div>'+
+        (seqMin>=50?'<div class="small" style="color:var(--accText);font-weight:600;margin-top:4px">'+seqMin+' min seguidos! Que tal uma pausa de 10 min?</div>':'')+'</div>';
+    h+='</div><div><b>'+esc(lancTitulo(a))+'</b><div class="small">'+esc(a.ativ||'Sem atividade')+(a.fat?'':' · não faturável')+'</div></div>'+
     '<label class="field">Descrição<input type="text" data-at="desc" list="dlDesc" value="'+esc(a.desc||'')+'" placeholder="O que você está fazendo?"></label>'+
+    (p?'<button class="btn primary" data-act="retomar">▶ Voltar ao trabalho</button>'
+      :'<div><div class="small" style="margin-bottom:6px">Pausar para descansar</div><div class="chips">'+[5,10,15].map(function(m){return '<button class="chip" data-act="pausar" data-min="'+m+'">☕ '+m+' min</button>';}).join('')+'<button class="chip" data-act="pausar" data-min="0">Pausa livre</button></div></div>')+
     '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn stop" data-act="parar" style="flex:1">Parar e salvar</button><button class="btn" data-act="descartarTimer">Descartar</button></div>'+(+S.cfg.arred?'<div class="small">Arredondamento: para cima, a cada '+S.cfg.arred+' min.</div>':'')+'</section>';}
   else h+='<section class="card"><h2>Novo apontamento</h2><div class="fields">'+
     '<label class="field">Cliente<select data-ff="cliente">'+cliOptions(f.cliente)+'</select></label>'+
@@ -263,12 +281,24 @@ function vHoje(){
   var l=doDia(TODAY),tot=somaMin(l),meta=(+S.cfg.metaDia||0)*60;
   h+='<section class="card"><div class="head"><h2>Hoje, '+fmtD(TODAY,true)+'</h2><span class="small">meta '+hm(meta)+'</span></div><div class="big">'+hm(tot)+(meta&&ehUtil(TODAY)?' <small>'+(tot>=meta?'meta batida ✓':'faltam '+hm(meta-tot))+'</small>':'')+'</div>'+(meta?metaBar(tot,meta):'')+
     (l.length?'<ul class="list">'+l.map(function(x){return lancLi(x);}).join('')+'</ul>':'<div class="empty">Nada lançado hoje.</div>')+'</section>';
+  h+=jardimCard(TODAY);
   var pendAll=S.lanc.filter(function(x){return !x.esp;});
   if(pendAll.length)h+='<a class="card" href="#relatorios" style="text-decoration:none;color:inherit;flex-direction:row;align-items:center"><span style="font-size:20px">📤</span><span style="flex:1"><b>'+pendAll.length+' lançamento'+(pendAll.length>1?'s':'')+' ainda não '+(pendAll.length>1?'estão':'está')+' no Espaider</b><br><span class="small">'+hm(somaMin(pendAll))+' no total · ver em Relatórios</span></span></a>';
   var dom=addDays(TODAY,-toD(TODAY).getDay()),sem=S.lanc.filter(function(x){return x.data>=dom&&x.data<=addDays(dom,6);}),ms=S.cfg.dias.length*meta;
   h+='<section class="card"><div class="head"><h2>Esta semana</h2><a class="small" href="#semana">Ver semana</a></div><div class="big">'+hm(somaMin(sem))+(ms?' <small>de '+hm(ms)+'</small>':'')+'</div>'+(ms?metaBar(somaMin(sem),ms):'')+'</section>';
   return h;
 }
+// jardim: cada sequência de trabalho sem pausa acima do mínimo vira uma árvore
+function focoDe(ini,fim){var am=+S.cfg.arvoreMin||25,js=(S.jardim||[]).filter(function(j){return j.data>=ini&&j.data<=fim;}),ls=S.lanc.filter(function(l){return l.data>=ini&&l.data<=fim;});
+  return {js:js,arv:js.filter(function(j){return j.min>=am&&!j.murcha;}),mur:js.filter(function(j){return j.murcha;}).length,maior:js.reduce(function(m,j){return Math.max(m,j.min);},0),
+    pausas:ls.reduce(function(s,l){return s+(l.pausas||0);},0),pausaMin:ls.reduce(function(s,l){return s+(l.pausaMin||0);},0)};}
+function jardimCard(d){
+  var f=focoDe(d,d),a=S.ativo,now=Date.now(),seqAt=a&&!a.pausa&&ds(new Date(a.focoIni||a.inicio))===d?Math.floor(seqSeg(a,now)/60):0,trab=somaMin(doDia(d))+(a&&ds(new Date(a.inicio))===d?trabSeg(a,now)/60:0);
+  if(!f.js.length&&!a)return '';
+  var am=+S.cfg.arvoreMin||25,plantas=f.js.filter(function(j){return j.min>=am||j.murcha;});
+  return '<section class="card"><div class="head"><h2>Seu jardim de hoje 🌳</h2><span class="small">'+f.arv.length+' árvore'+(f.arv.length===1?'':'s')+(f.mur?' · '+f.mur+' murcha'+(f.mur>1?'s':''):'')+'</span></div>'+
+    (plantas.length?'<div class="garden">'+plantas.map(function(j){return '<span title="'+j.min+' min sem pausa">'+planta(j.min,j.murcha?'murcha':'cresce',46)+j.min+'′</span>';}).join('')+'</div>':'<div class="small">Trabalhe '+am+' min seguidos, sem pausar, para plantar a primeira árvore do dia.</div>')+
+    '<div class="stats"><div class="stat"><div class="l">Focado hoje</div><div class="v">'+hm(trab)+'</div></div><div class="stat"><div class="l">Maior sequência</div><div class="v">'+hm(Math.max(f.maior,seqAt))+'</div></div><div class="stat"><div class="l">Pausas</div><div class="v">'+(f.pausas+(a?(a.pausas||[]).length:0))+'</div></div><div class="stat"><div class="l">Tempo de pausa</div><div class="v">'+hm(f.pausaMin+(a?pausaSeg(a,now)/60:0))+'</div></div></div></section>';}
 function weekNav(){var sel=ui.sel,dom=addDays(sel,-toD(sel).getDay()),h='';
   for(var i=0;i<7;i++){var d=addDays(dom,i),m=somaMin(doDia(d));h+='<button class="'+(d===TODAY?'today ':'')+(d===sel?'sel':'')+'" data-act="selDia" data-d="'+d+'" aria-pressed="'+(d===sel)+'" aria-label="'+fmtD(d,true)+', '+hm(m)+'"><span>'+DOW[i]+'</span><b>'+toD(d).getDate()+'</b><em>'+(m?hhmm(m):'')+'</em></button>';}
   var m1=toD(dom),m2=toD(addDays(dom,6)),mes=m1.getMonth()===m2.getMonth()?MESES[m1.getMonth()]+' '+m1.getFullYear():MESES[m1.getMonth()].slice(0,3)+' – '+MESES[m2.getMonth()].slice(0,3)+' '+m2.getFullYear();
@@ -314,6 +344,9 @@ function vRelatorios(){
     h+='<div style="display:flex;gap:8px;flex-wrap:wrap" class="noprint"><button class="btn primary" data-act="csv">Exportar para Excel (CSV)</button><button class="btn" data-act="copiar">Copiar resumo</button><button class="btn" data-act="imprimir">Imprimir / PDF</button></div>';
   }else h+='<div class="empty">Nenhum lançamento neste período.</div>';
   h+='</section>';
+  var fo=focoDe(p.ini,p.fim);
+  if(fo.js.length)h+='<section class="card"><div class="head"><h2>Foco 🌳</h2><span class="small">'+esc(p.nome)+'</span></div><div class="stats"><div class="stat"><div class="l">Árvores plantadas</div><div class="v">'+fo.arv.length+'</div></div><div class="stat"><div class="l">Maior sequência sem pausa</div><div class="v">'+hm(fo.maior)+'</div></div><div class="stat"><div class="l">Pausas</div><div class="v">'+fo.pausas+'</div></div><div class="stat"><div class="l">Plantas murchas</div><div class="v">'+fo.mur+'</div></div></div>'+
+    (fo.arv.length?'<div class="garden">'+fo.arv.slice(-40).map(function(j){return '<span title="'+fmtD(j.data)+': '+j.min+' min">'+planta(j.min,'cresce',36)+'</span>';}).join('')+'</div>':'')+'</section>';
   var pend=l.filter(function(x){return !x.esp;});
   if(l.length)h+='<section class="card"><div class="head"><h2>Espaider</h2><span class="small">'+(pend.length?'<b class="" style="color:var(--warn)">'+pend.length+' pendente'+(pend.length>1?'s':'')+'</b> · '+hm(somaMin(pend)):'tudo lançado ✓')+'</span></div>'+
     (pend.length?'<div class="small">Lançamentos deste período que ainda não estão no Espaider. Peça para o Claude lançar, ou copie a lista.'+(pend.some(function(x){return !x.desc||!x.ativ;})?' <b style="color:var(--warn)">Há lançamentos sem descrição ou sem atividade, que são obrigatórias no Espaider.</b>':'')+'</div>'+
@@ -347,6 +380,8 @@ function contaHtml(){
 function vPerfil(){var c=S.cfg;
   return hdr('Perfil','','')+runBar()+contaHtml()+
     '<section class="card"><h2>Preferências</h2><div class="fields"><label class="field">Meta de horas por dia<input class="num" inputmode="decimal" data-cfg="metaDia" value="'+NF1.format(c.metaDia||0)+'"></label>'+
+    '<label class="field">Vira árvore após (min sem pausa)<input class="num" inputmode="numeric" data-cfg="arvoreMin" value="'+(c.arvoreMin||25)+'"><span class="hint">Padrão: 25 min</span></label>'+
+    '<label class="field">Tolerância da pausa (min)<input class="num" inputmode="numeric" data-cfg="tol" value="'+(c.tol||5)+'"><span class="hint">Depois disso, a planta murcha</span></label>'+
     '<label class="field">Arredondar o cronômetro<select data-cfg="arred">'+[[0,'Não arredondar'],[5,'Para cima, a cada 5 min'],[6,'Para cima, a cada 6 min (0,1 h)'],[15,'Para cima, a cada 15 min']].map(function(x){return '<option value="'+x[0]+'"'+(+c.arred===x[0]?' selected':'')+'>'+x[1]+'</option>';}).join('')+'</select></label></div>'+
     '<div><div class="small" style="margin-bottom:6px">Dias úteis (contam para a meta da semana)</div><div class="chips">'+[1,2,3,4,5,6,0].map(function(d){return '<button class="chip" data-act="dia" data-d="'+d+'" aria-pressed="'+(c.dias.indexOf(d)>-1)+'">'+DOW[d]+'</button>';}).join('')+'</div></div></section>'+
     '<section class="card"><h2>Aparência</h2><div class="seg"><button data-theme-set="light">Claro</button><button data-theme-set="dark">Escuro</button><button data-theme-set="auto">Automático</button></div></section>';}
@@ -365,14 +400,68 @@ function render(){
 function route(){parseHash();render();window.scrollTo(0,0);}
 window.addEventListener('hashchange',route);
 function refocus(id){if(!id)return;setTimeout(function(){var el=document.getElementById(id);if(el)el.focus();},0);}
-setInterval(function(){if(!S||!S.ativo)return;document.querySelectorAll('[data-run]').forEach(function(el){el.textContent=hms((Date.now()-S.ativo.inicio)/1000);});},1000);
+var TITULO=document.title;
+setInterval(function(){
+  if(!S||!S.ativo){if(document.title!==TITULO)document.title=TITULO;return;}
+  var a=S.ativo,now=Date.now();
+  document.querySelectorAll('[data-run]').forEach(function(el){el.textContent=hms(trabSeg(a,now));});
+  document.querySelectorAll('[data-seq]').forEach(function(el){el.textContent=hms(seqSeg(a,now));});
+  var pp=document.querySelectorAll('[data-pausa]');
+  if(a.pausa){var dec=(now-a.pausa.ini)/1000,plano=(a.pausa.plano||0)*60,falta=plano-dec;
+    pp.forEach(function(el){el.textContent=plano?(falta>=0?'faltam '+hms(falta).slice(3):'passou '+hms(-falta).slice(3)):hms(dec).slice(3);});
+    document.title=(plano&&falta<0?'⏰ Volte ao trabalho · ':'☕ Pausa · ')+TITULO;
+    if(plano&&falta<=0&&ui.avisado!==a.pausa.ini){ui.avisado=a.pausa.ini;avisarFimPausa();render();}
+    if(plano&&-falta>(+S.cfg.tol||5)*60&&!a.pausa.murchou){a.pausa.murchou=true;save();render();}
+  }else document.title='⏱ '+hms(trabSeg(a,now))+' · '+TITULO;
+  // a planta cresce a cada minuto
+  var m=Math.floor(seqSeg(a,now)/60);if(!a.pausa&&ui.plantaMin!==m){ui.plantaMin=m;document.querySelectorAll('[data-planta]').forEach(function(el){el.innerHTML=planta(m,'cresce',el.dataset.planta==='p'?90:150);});
+    var est=document.querySelector('[data-estagio]');if(est)est.textContent=estagio(m).nome;
+    if(m===50)render();}
+},1000);
+
+/* ---------- foco: tempo trabalhado, sequência sem pausa e a planta ---------- */
+function pausaSeg(a,now){return (a.pausas||[]).reduce(function(s,p){return s+(p.fim-p.ini);},0)/1000+(a.pausa?(now-a.pausa.ini)/1000:0);}
+function trabSeg(a,now){return Math.max(0,(now-a.inicio)/1000-pausaSeg(a,now));}
+function seqSeg(a,now){return a.pausa?0:Math.max(0,(now-(a.focoIni||a.inicio))/1000);}
+var ESTAGIOS=[[0,'Semente'],[5,'Broto'],[15,'Muda'],[25,'Árvore'],[50,'Árvore grande'],[90,'Árvore frondosa']];
+function estagio(min){var e=ESTAGIOS[0];ESTAGIOS.forEach(function(x){if(min>=x[0])e=x;});return {nome:e[1],min:e[0]};}
+// desenho original: vaso + caule que cresce + folhas; vira árvore com copa a partir de 25 min
+function planta(min,estado,px){
+  px=px||150;var mur=estado==='murcha',ver=mur?'#A16207':'#16A34A',ver2=mur?'#CA8A04':'#22C55E',tronco=mur?'#78716C':'#92400E';
+  var t=Math.min(min/90,1),h=min<5?4+min*1.5:12+68*t,cx=60,base=96,s='<svg viewBox="0 0 120 130" width="'+px+'" height="'+Math.round(px*130/120)+'" role="img" aria-label="'+(mur?'Planta murcha':estagio(min).nome+' com '+min+' minutos de foco')+'">';
+  s+='<ellipse cx="60" cy="124" rx="34" ry="4" fill="rgba(0,0,0,.12)"/><path d="M34 96h52l-6 28H40z" fill="#C2410C"/><rect x="31" y="92" width="58" height="8" rx="3" fill="#EA580C"/><ellipse cx="60" cy="93" rx="26" ry="3" fill="#57290F"/>';
+  var g='<g'+(mur?' transform="rotate(14 60 '+base+')"':'')+'>';
+  if(min<5){g+='<ellipse cx="60" cy="'+(base-2)+'" rx="5" ry="3.5" fill="#92400E"/>'+(min>=1?'<path d="M60 '+(base-3)+'v-'+(min*1.5)+'" stroke="'+ver+'" stroke-width="2.5" stroke-linecap="round"/>':'');}
+  else if(min<25){var top=base-h;g+='<path d="M60 '+base+'Q57 '+(base-h/2)+' 60 '+top+'" stroke="'+ver+'" stroke-width="3" fill="none" stroke-linecap="round"/>';
+    var n=min<15?2:4;for(var i=0;i<n;i++){var y=top+6+i*(h-10)/Math.max(n,1),d=i%2?1:-1;g+='<path d="M60 '+y+'q'+(d*14)+' -10 '+(d*18)+' -2q'+(-d*8)+' 8 '+(-d*18)+' 2z" fill="'+(i%2?ver:ver2)+'"/>';}
+    g+='<path d="M60 '+top+'q-8 -8 -2 -14q8 4 2 14z" fill="'+ver2+'"/>';}
+  else{var top2=base-h,r=16+24*Math.min((min-25)/65,1);g+='<path d="M57 '+base+'L58 '+(top2+r*0.4)+'L62 '+(top2+r*0.4)+'L63 '+base+'z" fill="'+tronco+'"/>'+
+    '<circle cx="'+(cx-r*0.55)+'" cy="'+(top2+r*0.25)+'" r="'+(r*0.7)+'" fill="'+ver+'"/><circle cx="'+(cx+r*0.55)+'" cy="'+(top2+r*0.25)+'" r="'+(r*0.7)+'" fill="'+ver+'"/><circle cx="'+cx+'" cy="'+(top2-r*0.15)+'" r="'+r+'" fill="'+ver2+'"/>'+
+    (min>=90&&!mur?'<circle cx="'+(cx-r*0.4)+'" cy="'+(top2)+'" r="3.5" fill="#EF4444"/><circle cx="'+(cx+r*0.35)+'" cy="'+(top2+r*0.3)+'" r="3.5" fill="#EF4444"/><circle cx="'+(cx+r*0.1)+'" cy="'+(top2-r*0.5)+'" r="3.5" fill="#EF4444"/>':'');}
+  g+='</g>';s+=g;
+  if(estado==='pausa')s+='<text x="92" y="30" font-size="16" font-weight="700" fill="#64748B">z</text><text x="102" y="18" font-size="12" font-weight="700" fill="#94A3B8">z</text>';
+  return s+'</svg>';}
+function avisarFimPausa(){try{if(navigator.vibrate)navigator.vibrate([300,150,300]);}catch(e){}
+  try{if(window.Notification&&Notification.permission==='granted')new Notification('Pausa encerrada',{body:'Hora de voltar ao trabalho. Sua planta está esperando.'});}catch(e){}
+  try{var c=new (window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),gn=c.createGain();o.frequency.value=880;gn.gain.value=0.08;o.connect(gn);gn.connect(c.destination);o.start();setTimeout(function(){o.stop();c.close();},400);}catch(e){}}
+// guarda a sequência que acabou (vira árvore se passar do mínimo)
+function fecharSeq(a,now){var min=Math.round(seqSeg(a,now)/60);if(min<1)return null;S.jardim=S.jardim||[];
+  var j={id:uid(),data:ds(new Date(a.focoIni||a.inicio)),min:min,sess:a.inicio,murcha:false};S.jardim.push(j);return j;}
 
 /* ---------- cronômetro ---------- */
-function iniciar(dados){if(S.ativo)return;S.ativo={inicio:Date.now(),cliente:dados.cliente||'',projeto:dados.projeto||'',ativ:dados.ativ||'',desc:dados.desc||'',fat:dados.fat!==false};commit();}
-function parar(){var a=S.ativo;if(!a)return;var ini=new Date(a.inicio),fimD=new Date(),min=arred((fimD-ini)/60000),ds0=ds(ini);
-  if((fimD-ini)>16*3600000&&!confirm('O cronômetro está ligado há mais de 16 horas. Salvar assim mesmo? (Dá para corrigir depois em Editar.)'))return;
-  S.lanc.push({id:uid(),data:ds0,ini:nowT(ini),fim:m2t(t2m(nowT(ini))+min),min:min,cliente:a.cliente,projeto:a.projeto,ativ:a.ativ,desc:a.desc,fat:a.fat});
-  ui.f={cliente:a.cliente,projeto:a.projeto,ativ:a.ativ,desc:'',fat:a.fat};S.ativo=null;commit();}
+function iniciar(dados){if(S.ativo)return;var now=Date.now();S.ativo={inicio:now,focoIni:now,pausas:[],pausa:null,cliente:dados.cliente||'',projeto:dados.projeto||'',ativ:dados.ativ||'',desc:dados.desc||'',fat:dados.fat!==false};ui.plantaMin=-1;commit();}
+function pausar(plano){var a=S.ativo;if(!a||a.pausa)return;var now=Date.now(),j=fecharSeq(a,now);a.pausa={ini:now,plano:plano||0,seq:j?j.id:'',murchou:false};
+  try{if(plano&&window.Notification&&Notification.permission==='default')Notification.requestPermission();}catch(e){}commit();}
+function retomar(){var a=S.ativo;if(!a||!a.pausa)return;var now=Date.now(),p=a.pausa;
+  if(p.murchou&&p.seq){var j=S.jardim.find(function(x){return x.id===p.seq;});if(j)j.murcha=true;}
+  a.pausas.push({ini:p.ini,fim:now,plano:p.plano});a.pausa=null;a.focoIni=now;ui.plantaMin=-1;document.title=TITULO;commit();}
+function parar(){var a=S.ativo;if(!a)return;var now=Date.now();
+  if(a.pausa){var p=a.pausa;if(p.murchou&&p.seq){var jj=S.jardim.find(function(x){return x.id===p.seq;});if(jj)jj.murcha=true;}a.pausas.push({ini:p.ini,fim:now,plano:p.plano});a.pausa=null;}
+  else fecharSeq(a,now);
+  var ini=new Date(a.inicio),trab=trabSeg(a,now),min=arred(trab/60),ds0=ds(ini),pmin=Math.round(pausaSeg(a,now)/60);
+  if(trab>16*3600&&!confirm('O cronômetro marca mais de 16 horas de trabalho. Salvar assim mesmo? (Dá para corrigir depois em Editar.)'))return;
+  S.lanc.push({id:uid(),data:ds0,ini:nowT(ini),fim:nowT(new Date(now)),min:min,cliente:a.cliente,projeto:a.projeto,ativ:a.ativ,desc:a.desc,fat:a.fat,pausas:a.pausas.length,pausaMin:pmin});
+  ui.f={cliente:a.cliente,projeto:a.projeto,ativ:a.ativ,desc:'',fat:a.fat};S.ativo=null;document.title=TITULO;commit();}
 
 /* ---------- lançamento (diálogo) ---------- */
 var dlg=document.getElementById('dlg'),form=document.getElementById('dlgForm'),editId=null;
@@ -400,7 +489,8 @@ form.addEventListener('submit',function(e){
   if(rv==='del'&&editId){if(confirm('Excluir este lançamento?')){S.lanc=S.lanc.filter(function(x){return x.id!==editId;});commit();}else e.preventDefault();return;}
   if(rv!=='ok')return;
   var fd=new FormData(form),ini=String(fd.get('ini')||''),fim=String(fd.get('fim')||''),min=0;
-  if(ini&&fim){min=t2m(fim)-t2m(ini);if(min<0)min+=1440;}else min=parseDur(fd.get('dur'));
+  // a duração vale mais que início/fim (no cronômetro, o intervalo inclui as pausas)
+  min=parseDur(fd.get('dur'));if(!(min>0)&&ini&&fim){min=t2m(fim)-t2m(ini);if(min<0)min+=1440;}
   if(!(min>0)){e.preventDefault();alert('Informe a duração (ex.: 1:30) ou o horário de início e fim.');return;}
   if(!String(fd.get('desc')||'').trim()){e.preventDefault();alert('Escreva uma descrição: ela é obrigatória no time-sheet do Espaider.');return;}
   if(!fd.get('ativ')&&!confirm('Sem atividade. No Espaider a atividade é obrigatória. Salvar assim mesmo?')){e.preventDefault();return;}
@@ -430,6 +520,8 @@ document.addEventListener('click',function(e){
   switch(a){
   case 'iniciar':iniciar(ui.f);return;
   case 'parar':parar();return;
+  case 'pausar':pausar(+t.dataset.min||0);return;
+  case 'retomar':retomar();return;
   case 'descartarTimer':if(confirm('Descartar o cronômetro sem salvar?')){S.ativo=null;commit();}return;
   case 'novoLanc':openLanc(null,t.dataset.d||(R.v==='semana'?ui.sel:TODAY));return;
   case 'editar':openLanc(t.dataset.id);return;
