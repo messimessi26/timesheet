@@ -29,7 +29,9 @@
 html{font-size:16px;background:var(--bg)}
 html,body{margin:0;height:100%}
 body{background:var(--bg);color:var(--text);font-family:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;line-height:1.45;
-  display:grid;grid-template-rows:1fr auto;grid-template-areas:"main" "nav";height:100dvh;overflow:hidden}
+  display:grid;grid-template-rows:minmax(0,1fr) auto;grid-template-areas:"main" "nav";overflow:hidden;
+  /* preso às bordas da janela: acompanha qualquer mudança de tamanho (100dvh às vezes não atualiza) */
+  position:fixed;inset:0;height:auto}
 button,a{font:inherit;color:inherit}
 :focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:10px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
@@ -50,7 +52,7 @@ svg{flex-shrink:0}
 .menu a:hover .i{background:var(--soft)}
 .num{position:absolute;top:2px;left:calc(50% + 10px);min-width:18px;height:18px;border-radius:9px;background:var(--red);color:#fff;font-size:.68rem;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 5px;border:2px solid var(--card)}
 @media (min-width:900px){
-  body{grid-template-rows:none;grid-template-columns:236px 1fr;grid-template-areas:"nav main"}
+  body{grid-template-rows:minmax(0,1fr);grid-template-columns:236px minmax(0,1fr);grid-template-areas:"nav main"}
   .menu{border-top:0;border-right:1px solid var(--line);padding:22px 14px;display:flex;flex-direction:column;gap:22px;background:var(--card)}
   .marca{display:flex;align-items:center;gap:10px;padding:0 8px;font-weight:800;font-size:1.05rem;letter-spacing:-.01em}
   .marca b{width:34px;height:34px;border-radius:10px;background:var(--text);color:var(--bg);display:flex;align-items:center;justify-content:center;font-size:1rem}
