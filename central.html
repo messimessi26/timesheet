@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F4F5F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E1013" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Central">
+<title>Minha Central</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Site central: junta Finanças, Treino e Timesheet. Cada app continua no seu endereço
+   e aparece aqui dentro; a tela Início mostra um resumo que cada app manda. */
+:root{
+  --bg:#F4F5F7;--card:#FFFFFF;--text:#111827;--muted:#4B5563;--line:#D1D5DB;--soft:#EEF0F3;
+  --acc:#4338CA;--accText:#3730A3;--fin:#0F766E;--trei:#15803D;--ts:#4338CA;
+  --red:#B91C1C;--amb:#92400E;--ok:#15803D;--focus:#2563EB;
+  --nav:#1F2329;--navText:#D1D5DB;--shadow:0 4px 14px rgba(17,24,39,.08);color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0E1013;--card:#171A1F;--text:#F3F4F6;--muted:#B4BAC4;--line:#3A404A;--soft:#232830;
+  --acc:#A5B4FC;--accText:#C7D2FE;--fin:#5EEAD4;--trei:#86EFAC;--ts:#A5B4FC;
+  --red:#FCA5A5;--amb:#FCD34D;--ok:#86EFAC;--focus:#93C5FD;
+  --nav:#171A1F;--navText:#C9CED6;--shadow:none;color-scheme:dark;}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{font-size:16px}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;line-height:1.45;
+  display:grid;grid-template-rows:auto 1fr;height:100dvh;overflow:hidden}
+button,a{font:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:8px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.skip{position:absolute;left:8px;top:-60px;z-index:99;background:var(--card);color:var(--text);padding:10px 14px;border-radius:10px;font-weight:700}
+.skip:focus{top:8px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* menu principal: em cima no celular, na lateral no computador */
+.top{background:var(--nav);padding:calc(6px + env(safe-area-inset-top,0px)) 8px 6px;z-index:10}
+.brand{display:none;color:#fff;font-weight:800;font-size:1.15rem;padding:6px 10px 14px}
+.brand small{display:block;font-weight:500;font-size:.8rem;color:var(--navText)}
+.top nav ul{list-style:none;margin:0 auto;padding:0;display:grid;grid-template-columns:repeat(4,1fr);gap:4px;max-width:640px}
+.top nav a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:56px;padding:6px 4px;border-radius:14px;color:var(--navText);text-decoration:none;font-size:.8rem;font-weight:600;position:relative}
+.top nav a svg{width:24px;height:24px;stroke:currentColor;flex-shrink:0}
+.top nav a:hover{background:rgba(255,255,255,.08)}
+.top nav a[aria-current="page"]{background:rgba(255,255,255,.16);color:#fff}
+.top nav a[aria-current="page"]::after{content:"";position:absolute;left:30%;right:30%;bottom:4px;height:3px;border-radius:2px;background:#fff}
+.dot{position:absolute;top:6px;left:calc(50% + 8px);min-width:18px;height:18px;border-radius:9px;background:#DC2626;color:#fff;font-size:.7rem;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px}
+@media (min-width:900px){
+  body{grid-template-rows:none;grid-template-columns:220px 1fr}
+  .top{padding:16px 12px;display:flex;flex-direction:column}
+  .brand{display:block}
+  .top nav ul{grid-template-columns:1fr;gap:6px;max-width:none}
+  .top nav a{flex-direction:row;justify-content:flex-start;gap:12px;font-size:1rem;padding:12px 14px;min-height:52px}
+  .top nav a[aria-current="page"]::after{left:0;right:auto;top:12px;bottom:12px;width:4px;height:auto}
+  .dot{position:static;margin-left:auto}
+}
+
+main{position:relative;min-height:0;min-width:0}
+.pane{position:absolute;inset:0}
+.pane iframe{border:0;width:100%;height:100%;display:block;background:var(--bg)}
+.pane.app{padding-bottom:env(safe-area-inset-bottom,0px)}
+.carregando{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-weight:600;pointer-events:none}
+
+/* tela Início */
+#p-inicio{overflow-y:auto;-webkit-overflow-scrolling:touch}
+.wrap{max-width:1100px;margin:0 auto;padding:20px 16px calc(32px + env(safe-area-inset-bottom,0px))}
+.ola{margin:0 0 4px;font-size:1.6rem;font-weight:800;letter-spacing:-.02em}
+.data{margin:0 0 18px;color:var(--muted);font-size:1rem}
+.data::first-letter{text-transform:uppercase}
+.grid{display:grid;gap:16px}
+@media (min-width:760px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:1200px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.card{background:var(--card);border-radius:20px;box-shadow:var(--shadow);border:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+.card>header{display:flex;align-items:center;gap:12px;padding:16px 18px 6px}
+.card>header .ic{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
+.card>header .ic svg{width:24px;height:24px;stroke:#fff}
+.card h2{margin:0;font-size:1.2rem;font-weight:700}
+.card .quando{font-size:.8rem;color:var(--muted)}
+.card .corpo{padding:8px 18px 14px;display:flex;flex-direction:column;gap:12px;flex:1}
+.card .acoes{display:flex;flex-wrap:wrap;gap:8px;padding:0 18px 18px}
+.big{font-size:2rem;font-weight:800;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums}
+.big small{font-size:1rem;font-weight:600;color:var(--muted);letter-spacing:0}
+.lbl{font-size:.9rem;color:var(--muted);font-weight:600;margin-bottom:4px}
+.bar{height:12px;border-radius:6px;background:var(--soft);overflow:hidden;border:1px solid var(--line)}
+.bar i{display:block;height:100%;border-radius:6px}
+.linha{font-size:1rem}
+.aviso{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;font-size:.95rem;font-weight:600}
+.aviso.red{background:color-mix(in srgb,var(--red) 12%,transparent);color:var(--red)}
+.aviso.amb{background:color-mix(in srgb,var(--amb) 13%,transparent);color:var(--amb)}
+.aviso.ok{background:color-mix(in srgb,var(--ok) 12%,transparent);color:var(--ok)}
+.aviso.ativo{background:color-mix(in srgb,var(--c) 13%,transparent);color:var(--text)}
+.lista{list-style:none;margin:0;padding:0}
+.lista li{display:flex;gap:10px;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--soft);font-size:.98rem}
+.lista li:last-child{border-bottom:0}
+.lista .n{flex:1;min-width:0}
+.lista .n span{display:block;font-size:.85rem;color:var(--muted)}
+.lista .v{font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+.marca{font-size:.75rem;font-weight:800;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.marca.red{background:color-mix(in srgb,var(--red) 14%,transparent);color:var(--red)}
+.marca.amb{background:color-mix(in srgb,var(--amb) 15%,transparent);color:var(--amb)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:10px 18px;border-radius:14px;font-weight:700;font-size:1rem;text-decoration:none;border:2px solid var(--line);background:var(--card);color:var(--text);cursor:pointer}
+.btn.pri{background:var(--c);border-color:var(--c);color:#fff}
+@media (prefers-color-scheme:dark){.btn.pri{color:#0E1013}}
+.btn:hover{filter:brightness(.96)}
+.vazio{color:var(--muted);font-size:1rem}
+.olho{margin-left:auto;border:2px solid var(--line);background:transparent;color:var(--text);border-radius:12px;min-height:44px;min-width:44px;padding:0 10px;font-weight:700;cursor:pointer}
+.ajustes{margin-top:18px}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{min-height:48px;padding:8px 16px;border-radius:14px;border:2px solid var(--line);background:var(--card);color:var(--text);font-weight:700;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--text);color:var(--bg);border-color:var(--text)}
+.dica{font-size:.9rem;color:var(--muted);margin:8px 0 0}
+</style>
+</head>
+<body>
+<a class="skip" href="#conteudo">Pular para o conteúdo</a>
+<header class="top">
+  <div class="brand">Minha Central<small>Finanças, treino e trabalho</small></div>
+  <nav aria-label="Seções">
+    <ul id="menu"></ul>
+  </nav>
+</header>
+<main id="conteudo" tabindex="-1">
+  <section id="p-inicio" class="pane" aria-labelledby="tInicio"><div class="wrap" id="inicio"></div></section>
+  <section id="p-financas" class="pane app" hidden aria-label="Finanças"><div class="carregando">Carregando Finanças…</div></section>
+  <section id="p-treino" class="pane app" hidden aria-label="Treino"><div class="carregando">Carregando Treino…</div></section>
+  <section id="p-timesheet" class="pane app" hidden aria-label="Timesheet"><div class="carregando">Carregando Timesheet…</div></section>
+</main>
+
+<script>
+(function(){
+'use strict';
+var ICON={
+  inicio:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
+  financas:'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/>',
+  treino:'<path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/>',
+  timesheet:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/>'
+};
+// cada app continua no próprio endereço; aqui ele abre dentro da central
+var APPS={financas:{nome:'Finanças',url:'/finance/',cor:'var(--fin)',id:'financas'},
+          treino:{nome:'Treino',url:'/Academia/',cor:'var(--trei)',id:'academia'},
+          timesheet:{nome:'Timesheet',url:'/timesheet/',cor:'var(--ts)',id:'timesheet'}};
+var SEC=['inicio','financas','treino','timesheet'],NOMES={inicio:'Início',financas:'Finanças',treino:'Treino',timesheet:'Timesheet'};
+var atual='inicio',titulo=document.title;
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function pad(n){return String(n).padStart(2,'0');}
+function hm(min){min=Math.round(min||0);return Math.floor(min/60)+'h'+pad(min%60);}
+function hms(s){s=Math.max(0,Math.floor(s));return pad(Math.floor(s/3600))+':'+pad(Math.floor(s%3600/60))+':'+pad(s%60);}
+var NF=new Intl.NumberFormat('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}),N0=new Intl.NumberFormat('pt-BR');
+function svg(k,c){return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"'+(c?' class="'+c+'"':'')+'>'+ICON[k]+'</svg>';}
+function ler(k,d){try{var v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}}
+function grava(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+
+/* ---------- resumos que os apps mandam ---------- */
+var RES={financas:ler('resumo-financas',null),academia:ler('resumo-academia',null),timesheet:ler('resumo-timesheet',null)};
+window.addEventListener('message',function(e){if(e.origin!==location.origin||!e.data||!e.data.hub)return;RES[e.data.hub]=e.data.r;if(atual==='inicio')pintaInicio();pintaMenu();});
+window.addEventListener('storage',function(e){if(e.key&&e.key.indexOf('resumo-')===0){RES[e.key.slice(7)]=ler(e.key,null);if(atual==='inicio')pintaInicio();pintaMenu();}});
+
+/* ---------- menu ---------- */
+function pintaMenu(){var ts=RES.timesheet,n=ts&&ts.nAlertas||0;
+  document.getElementById('menu').innerHTML=SEC.map(function(k){var badge=k==='timesheet'&&n?'<span class="dot" aria-hidden="true">'+n+'</span>':'';
+    return '<li><a href="#'+k+'"'+(k===atual?' aria-current="page"':'')+(badge?' aria-label="'+NOMES[k]+', '+n+' tarefa'+(n>1?'s':'')+' pedindo atenção"':'')+'>'+svg(k)+'<span>'+NOMES[k]+'</span>'+badge+'</a></li>';}).join('');}
+
+/* ---------- abrir os apps dentro da central ---------- */
+function frame(k,sub){var p=document.getElementById('p-'+k),f=p.querySelector('iframe');
+  if(!f){f=document.createElement('iframe');f.title=APPS[k].nome;f.src=APPS[k].url+(sub?'#'+sub:'');f.addEventListener('load',function(){f._ok=true;p.querySelector('.carregando').hidden=true;aplicaZoom(f);});p.appendChild(f);}
+  else if(sub){if(f._ok){try{f.contentWindow.location.hash=sub;}catch(e){f.src=APPS[k].url+'#'+sub;}}else f.src=APPS[k].url+'#'+sub;}
+  return f;}
+function vai(k,sub){
+  if(SEC.indexOf(k)<0)k='inicio';atual=k;
+  SEC.forEach(function(s){document.getElementById('p-'+s).hidden=s!==k;});
+  if(k!=='inicio')frame(k,sub);
+  else pintaInicio();
+  document.title=(k==='inicio'?titulo:NOMES[k]+' · '+titulo);pintaMenu();}
+function rota(){var h=decodeURIComponent((location.hash||'').slice(1)),i=h.indexOf('/');var k=i<0?h:h.slice(0,i),sub=i<0?'':h.slice(i+1);vai(k||'inicio',sub);
+  // depois de abrir um atalho com subpágina, deixa só a seção no endereço
+  if(sub)history.replaceState(null,'','#'+k);}
+window.addEventListener('hashchange',rota);
+// clicar na seção que já está aberta volta para o topo dela
+document.addEventListener('click',function(e){var a=e.target.closest('.top nav a');if(!a)return;var k=a.getAttribute('href').slice(1);
+  if(k===atual){e.preventDefault();if(k!=='inicio'){var f=frame(k);try{f.contentWindow.scrollTo(0,0);}catch(x){}}else document.getElementById('p-inicio').scrollTop=0;}});
+// botões da tela Início que abrem uma tela específica de um app
+document.addEventListener('click',function(e){var b=e.target.closest('[data-ir]');if(!b)return;e.preventDefault();var p=b.dataset.ir.split('/');location.hash=p[0];vai(p[0],p[1]||'');
+  var f=document.querySelector('#p-'+p[0]+' iframe');if(f)setTimeout(function(){try{f.focus();}catch(x){}},50);});
+
+/* ---------- tamanho do texto (vale para a central e para os 3 apps) ---------- */
+var ZOOMS=[[1,'Normal'],[1.15,'Grande'],[1.3,'Maior']],zoom=+ler('central-zoom',1)||1;
+function aplicaZoom(f){try{var d=f.contentDocument;if(d&&d.documentElement)d.documentElement.style.zoom=zoom===1?'':String(zoom);}catch(e){}}
+function setZoom(z){zoom=z;grava('central-zoom',z);document.documentElement.style.fontSize=(16*z)+'px';document.querySelectorAll('.pane iframe').forEach(aplicaZoom);pintaInicio();}
+document.documentElement.style.fontSize=(16*zoom)+'px';
+document.addEventListener('click',function(e){var b=e.target.closest('[data-zoom]');if(b)setZoom(+b.dataset.zoom);
+  var o=e.target.closest('[data-olho]');if(o){grava('central-ocultar',!ler('central-ocultar',false));pintaInicio();var n=document.querySelector('[data-olho]');if(n)n.focus();}});
+
+/* ---------- tela Início ---------- */
+function quando(r){if(!r||!r.em)return '';var d=new Date(r.em),h=new Date();return d.toDateString()===h.toDateString()?'Atualizado às '+pad(d.getHours())+':'+pad(d.getMinutes()):'Dados de '+pad(d.getDate())+'/'+pad(d.getMonth()+1)+'. Abra para atualizar.';}
+function eHoje(r){return r&&r.em&&new Date(r.em).toDateString()===new Date().toDateString();}
+function barra(v,max,cor,rotulo){var p=max>0?Math.min(100,Math.round(v/max*100)):0;return '<div class="bar" role="progressbar" aria-label="'+esc(rotulo)+'" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+p+'"><i style="width:'+p+'%;background:'+cor+'"></i></div>';}
+function card(k,corpo,acoes,r,extra){var a=APPS[k];
+  return '<section class="card" style="--c:'+a.cor+'" aria-labelledby="t-'+k+'"><header><span class="ic" style="background:'+a.cor+'">'+svg(k)+'</span><div><h2 id="t-'+k+'">'+a.nome+'</h2><div class="quando">'+esc(quando(r))+'</div></div>'+(extra||'')+'</header>'+
+    '<div class="corpo">'+corpo+'</div><div class="acoes">'+acoes+'</div></section>';}
+function btn(ir,txt,pri){return '<a class="btn'+(pri?' pri':'')+'" href="#'+ir.split('/')[0]+'" data-ir="'+ir+'">'+txt+'</a>';}
+
+function cTimesheet(){var r=RES.timesheet,h='';
+  if(!r)return card('timesheet','<p class="vazio">Abra o Timesheet uma vez neste aparelho para ver aqui as horas do dia e as tarefas.</p>',btn('timesheet','Abrir Timesheet',1),r);
+  var hoje=eHoje(r);
+  if(r.ativo){var s=r.ativo.pausado?0:(Date.now()-r.ativo.ini)/1000-r.ativo.pausaSeg;
+    h+='<div class="aviso ativo" style="--c:var(--ts)"><span aria-hidden="true">'+(r.ativo.pausado?'☕':'⏱')+'</span><span>'+(r.ativo.pausado?'Cronômetro em pausa':'Cronômetro ligado: <b data-relogio="'+r.ativo.ini+'" data-pausa="'+r.ativo.pausaSeg+'">'+hms(s)+'</b>')+'<br><span style="font-weight:500">'+esc(r.ativo.titulo)+'</span></span></div>';}
+  var min=hoje?r.hoje:0;
+  h+='<div><div class="lbl">Horas hoje</div><div class="big">'+hm(min)+(r.meta?' <small>de '+hm(r.meta)+'</small>':'')+'</div></div>'+(r.meta?barra(min,r.meta,'var(--ts)','Horas de hoje em relação à meta'):'');
+  h+='<div class="linha"><b>'+r.comigo+'</b> tarefa'+(r.comigo===1?'':'s')+' com você · <b>'+r.esperando+'</b> esperando alguém</div>';
+  if(r.alertas&&r.alertas.length)h+='<div><div class="lbl">Pedem atenção ('+r.nAlertas+')</div><ul class="lista">'+r.alertas.map(function(a){return '<li><span class="n">'+esc(a.t)+'<span>'+esc(a.c)+'</span></span><span class="marca '+(a.red?'red':'amb')+'">'+esc(a.a)+'</span></li>';}).join('')+'</ul></div>';
+  else h+='<div class="aviso ok"><span aria-hidden="true">✓</span><span>Nenhuma tarefa pedindo atenção.</span></div>';
+  if(r.espaider)h+='<div class="linha" style="color:var(--muted)">'+r.espaider+' lançamento'+(r.espaider>1?'s':'')+' ainda não '+(r.espaider>1?'estão':'está')+' no Espaider.</div>';
+  return card('timesheet',h,btn('timesheet/hoje',r.ativo?'Ver cronômetro':'Iniciar cronômetro',1)+btn('timesheet/radar','Tarefas'),r);}
+
+function cTreino(){var r=RES.academia,h='';
+  if(!r)return card('treino','<p class="vazio">Abra o Treino uma vez neste aparelho para ver aqui as calorias e o treino do dia.</p>',btn('treino','Abrir Treino',1),r);
+  var hoje=eHoje(r),kcal=hoje?r.kcal:0,prot=hoje?r.prot:0,feito=hoje?r.feito||[]:[];
+  if(r.ativo)h+='<div class="aviso ativo" style="--c:var(--trei)"><span aria-hidden="true">🏋️</span><span>Treino em andamento: <b>'+esc(r.ativo.nome)+'</b></span></div>';
+  h+='<div><div class="lbl">Calorias hoje</div><div class="big">'+N0.format(kcal)+(r.metaKcal?' <small>de '+N0.format(r.metaKcal)+' kcal</small>':' <small>kcal</small>')+'</div></div>'+(r.metaKcal?barra(kcal,r.metaKcal,'var(--trei)','Calorias de hoje em relação à meta'):'');
+  if(r.metaProt)h+='<div><div class="lbl">Proteína: '+prot+' de '+r.metaProt+' g</div>'+barra(prot,r.metaProt,'var(--trei)','Proteína de hoje em relação à meta')+'</div>';
+  if(hoje&&!r.anotou)h+='<div class="aviso amb"><span aria-hidden="true">🍽</span><span>Nada anotado na comida hoje.</span></div>';
+  h+='<div class="linha"><span class="lbl" style="display:inline">Treino de hoje:</span> '+(feito.length?'<b>'+esc(feito.join(', '))+'</b> ✓ feito':r.plano?'<b>'+esc(r.plano)+'</b>':'descanso')+'</div>';
+  return card('treino',h,btn('treino/comida','Anotar comida',1)+btn('treino/treinos','Treinos'),r);}
+
+function cFinancas(){var r=RES.financas,h='',oc=!!ler('central-ocultar',false);
+  var olho='<button class="olho" data-olho aria-pressed="'+oc+'" aria-label="'+(oc?'Mostrar valores':'Ocultar valores')+'">'+(oc?'👁 Mostrar':'🙈 Ocultar')+'</button>';
+  if(!r)return card('financas','<p class="vazio">Abra Finanças uma vez neste aparelho para ver aqui as contas do mês.</p>',btn('financas','Abrir Finanças',1),r);
+  var v=function(n){return oc?'R$ •••':'R$ '+NF.format(n||0);};
+  if(r.exemplo)h+='<div class="aviso amb"><span aria-hidden="true">ℹ</span><span>Finanças ainda está com dados de exemplo.</span></div>';
+  h+='<div><div class="lbl">Falta pagar este mês</div><div class="big">'+v(r.aPagar)+'</div><div class="linha" style="color:var(--muted)">'+r.nAPagar+' conta'+(r.nAPagar===1?'':'s')+' em aberto</div></div>';
+  if(r.vencidas)h+='<div class="aviso red"><span aria-hidden="true">!</span><span>'+r.vencidas+' conta'+(r.vencidas>1?'s':'')+' do mês já venceu'+(r.vencidas>1?'ram':'')+' e não está marcada como paga.</span></div>';
+  if(r.atrasos)h+='<div class="aviso amb"><span aria-hidden="true">!</span><span>'+r.atrasos+' conta'+(r.atrasos>1?'s':'')+' em atraso para quitar.</span></div>';
+  var qd=function(d){return d===0?'vence hoje':d===1?'vence amanhã':d>1?'em '+d+' dias':d===-1?'venceu ontem':'venceu há '+(-d)+' dias';};
+  if(r.proximas&&r.proximas.length)h+='<div><div class="lbl">Próximas contas</div><ul class="lista">'+r.proximas.map(function(b){return '<li><span class="n">'+esc(b.nome)+'<span>'+qd(b.dias)+(b.est?' · valor estimado':'')+'</span></span><span class="v">'+v(b.valor)+'</span></li>';}).join('')+'</ul></div>';
+  else h+='<div class="aviso ok"><span aria-hidden="true">✓</span><span>Todas as contas do mês estão pagas.</span></div>';
+  return card('financas',h,btn('financas/visao','Abrir Finanças',1)+btn('financas/contas','Minhas contas'),r,olho);}
+
+function pintaInicio(){var el=document.getElementById('inicio');if(!el)return;var d=new Date(),hr=d.getHours();
+  var foco=document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#inicio')?(document.activeElement.dataset.zoom!=null?'[data-zoom="'+document.activeElement.dataset.zoom+'"]':null):null;
+  el.innerHTML='<h1 class="ola" id="tInicio">'+(hr<12?'Bom dia':hr<18?'Boa tarde':'Boa noite')+'</h1><p class="data">'+d.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})+'</p>'+
+    '<div class="grid">'+cTimesheet()+cTreino()+cFinancas()+'</div>'+
+    '<section class="card ajustes" aria-labelledby="tAj"><header><div><h2 id="tAj">Tamanho do texto</h2></div></header><div class="corpo"><div class="seg" role="group" aria-labelledby="tAj">'+
+    ZOOMS.map(function(z){return '<button data-zoom="'+z[0]+'" aria-pressed="'+(zoom===z[0])+'">'+z[1]+'</button>';}).join('')+
+    '</div><p class="dica">Vale para a Central e para os três apps. Para adicionar na tela de início do iPhone: no Safari, toque em Compartilhar → “Adicionar à Tela de Início”.</p></div></section>';
+  if(foco){var f=el.querySelector(foco);if(f)f.focus();}}
+// relógio do cronômetro ao vivo na tela Início
+setInterval(function(){if(atual!=='inicio')return;document.querySelectorAll('[data-relogio]').forEach(function(b){b.textContent=hms((Date.now()-(+b.dataset.relogio))/1000-(+b.dataset.pausa||0));});},1000);
+// muda de dia com a página aberta
+var dia=new Date().toDateString();setInterval(function(){if(new Date().toDateString()!==dia){dia=new Date().toDateString();if(atual==='inicio')pintaInicio();}},60000);
+
+/* ---------- início ---------- */
+rota();
+// carrega os três apps em segundo plano: assim o Início recebe os resumos atualizados (e abrir cada um fica instantâneo)
+setTimeout(function(){['timesheet','treino','financas'].forEach(function(k,i){setTimeout(function(){frame(k);},i*700);});},600);
+})();
+</script>
+</body>
+</html>
