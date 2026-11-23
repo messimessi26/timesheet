@@ -3,8 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#141311" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F6F4EF" id="corBarra">
+<script>
+// aparência: claro (padrão), escuro ou automático (segue o aparelho). Definida antes de desenhar, para não piscar.
+(function(){var t='claro';try{t=JSON.parse(localStorage.getItem('central-tema'))||'claro';}catch(e){}
+  var esc=t==='escuro'||(t==='auto'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.setAttribute('data-tema',esc?'escuro':'claro');})();
+</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Central">
@@ -20,10 +25,11 @@
   --fin:#0B7A5F;--trei:#D9480F;--ts:#3554D1;
   --red:#B42318;--amb:#8A5300;--ok:#1E7A3C;--focus:#3554D1;--onc:#FFFFFF;color-scheme:light;
 }
-@media (prefers-color-scheme:dark){:root{
+/* escuro só quando escolhido em Aparência (ou no Automático com o aparelho no escuro) */
+:root[data-tema="escuro"]{
   --bg:#141311;--card:#1D1B19;--text:#F3F0EA;--muted:#A9A296;--line:#302C27;--soft:#26231F;
   --fin:#3CCB9E;--trei:#FF8A5B;--ts:#8EA4FF;
-  --red:#FF8A80;--amb:#F5C26B;--ok:#7BD99A;--focus:#8EA4FF;--onc:#141311;color-scheme:dark;}}
+  --red:#FF8A80;--amb:#F5C26B;--ok:#7BD99A;--focus:#8EA4FF;--onc:#141311;color-scheme:dark;}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html{font-size:16px;background:var(--bg)}
@@ -175,7 +181,7 @@ function grava(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
 var FONTE='https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap';
 var TEMA_BASE=
  'html.central:root{--bg:#F6F4EF;--card:#FFFFFF;--text:#1F1D1A;--muted:#6E685F;--line:#E6E0D5;--soft:#F0ECE4;--soft2:#F3F0E9;--pill:#FFFFFF;--pillLine:#E0D9CC;--shadow:none;color-scheme:light}'+
- '@media (prefers-color-scheme:dark){html.central:root{--bg:#141311;--card:#1D1B19;--text:#F3F0EA;--muted:#A9A296;--line:#302C27;--soft:#26231F;--soft2:#221F1C;--pill:#1D1B19;--pillLine:#3A352F;--shadow:none;color-scheme:dark}}'+
+ 'html.central.escuro:root{--bg:#141311;--card:#1D1B19;--text:#F3F0EA;--muted:#A9A296;--line:#302C27;--soft:#26231F;--soft2:#221F1C;--pill:#1D1B19;--pillLine:#3A352F;--shadow:none;color-scheme:dark}'+
  'html.central,html.central body{background:var(--bg)!important}'+
  'html.central body{font-family:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif!important;padding:0!important}'+
  'html.central button,html.central input,html.central select,html.central textarea{font-family:inherit}'+
@@ -193,11 +199,11 @@ var TEMA_BASE=
  'html.central .hdr h1{font-weight:800;letter-spacing:-.02em}';
 var TEMA={
  timesheet:'html.central:root{--acc:#3554D1;--accText:#2C46B0;--fat:#3554D1;--nfat:#BDB5A6;--tab:transparent}'+
-   '@media (prefers-color-scheme:dark){html.central:root{--acc:#8EA4FF;--accText:#AFC0FF;--fat:#8EA4FF;--nfat:#5E584F}}',
+   'html.central.escuro:root{--acc:#8EA4FF;--accText:#AFC0FF;--fat:#8EA4FF;--nfat:#5E584F}',
  treino:'html.central:root{--acc:#D9480F;--accText:#B43A0B;--warn:#B42318;--tab:transparent}'+
-   '@media (prefers-color-scheme:dark){html.central:root{--acc:#FF8A5B;--accText:#FFA27F;--warn:#FF8A80}}',
+   'html.central.escuro:root{--acc:#FF8A5B;--accText:#FFA27F;--warn:#FF8A80}',
  financas:'html.central:root{--blue:#0B7A5F;--blueText:#09654F;--navy:#075443;--blue2:#13A07C;--tint:#E7F4EF;--tint2:#CDEADF;--grayBar:#D6CFC2}'+
-   '@media (prefers-color-scheme:dark){html.central:root{--blue:#3CCB9E;--blueText:#7FE0C0;--navy:#1F9C78;--blue2:#5FD8B1;--tint:#16302A;--tint2:#1E4A3E;--grayBar:#4A443C}}'+
+   'html.central.escuro:root{--blue:#3CCB9E;--blueText:#7FE0C0;--navy:#1F9C78;--blue2:#5FD8B1;--tint:#16302A;--tint2:#1E4A3E;--grayBar:#4A443C}'+
    /* Finanças: sem a moldura azul; o menu lateral vira faixa de abas no topo */
    'html.central .app{max-width:none!important;border-radius:0!important;box-shadow:none!important;padding:0 16px 32px!important;min-height:100vh}'+
    'html.central .side{position:sticky;top:0;z-index:30;flex:1 1 100%!important;flex-direction:row!important;align-items:center;gap:6px!important;margin:0 -16px;padding:10px 12px!important;border-radius:0!important;'+
@@ -210,7 +216,10 @@ var TEMA={
    'html.central .side .nav a[aria-current="page"]{background:var(--text);color:var(--bg)}'+
    'html.central .side .nav a[aria-current="page"] svg{stroke:var(--bg)}'
 };
-function tematiza(k,f){try{var d=f.contentDocument;if(!d||!d.head)return;d.documentElement.classList.add('central');
+function escuro(){return document.documentElement.getAttribute('data-tema')==='escuro';}
+function tematiza(k,f){try{var d=f.contentDocument;if(!d||!d.head)return;var h=d.documentElement;h.classList.add('central');
+  // a aparência da central vale dentro do app (sem mudar a escolha do app quando aberto sozinho)
+  h.classList.toggle('escuro',escuro());h.setAttribute('data-theme',escuro()?'dark':'light');
   if(!d.getElementById('central-fonte')){var l=d.createElement('link');l.id='central-fonte';l.rel='stylesheet';l.href=FONTE;d.head.appendChild(l);}
   var s=d.getElementById('central-tema');if(!s){s=d.createElement('style');s.id='central-tema';d.head.appendChild(s);}
   s.textContent=TEMA_BASE+(TEMA[k]||'');aplicaZoom(f);}catch(e){}}
@@ -253,6 +262,14 @@ var ZOOMS=[[1,'A'],[1.15,'A+'],[1.3,'A++']],ZNOME={1:'normal',1.15:'grande',1.3:
 function aplicaZoom(f){try{var d=f.contentDocument;if(d&&d.documentElement)d.documentElement.style.zoom=zoom===1?'':String(zoom);}catch(e){}}
 function setZoom(z){zoom=z;grava('central-zoom',z);document.documentElement.style.fontSize=(16*z)+'px';document.querySelectorAll('.pane iframe').forEach(aplicaZoom);pintaInicio();var b=document.querySelector('[data-zoom="'+z+'"]');if(b)b.focus();}
 document.documentElement.style.fontSize=(16*zoom)+'px';
+/* ---------- aparência: claro (padrão), escuro ou automático ---------- */
+var TEMAS=[['claro','Claro'],['escuro','Escuro'],['auto','Automático']],tema=ler('central-tema','claro')||'claro',mqEscuro=window.matchMedia?matchMedia('(prefers-color-scheme: dark)'):null;
+function aplicaTema(){var esc=tema==='escuro'||(tema==='auto'&&mqEscuro&&mqEscuro.matches);document.documentElement.setAttribute('data-tema',esc?'escuro':'claro');
+  document.getElementById('corBarra').setAttribute('content',esc?'#141311':'#F6F4EF');
+  SEC.forEach(function(k){var f=k!=='inicio'&&document.querySelector('#p-'+k+' iframe');if(f)tematiza(k,f);});}
+function setTema(t){tema=t;grava('central-tema',t);aplicaTema();pintaInicio();var b=document.querySelector('[data-tema-set="'+t+'"]');if(b)b.focus();}
+if(mqEscuro){var muda=function(){if(tema==='auto')aplicaTema();};if(mqEscuro.addEventListener)mqEscuro.addEventListener('change',muda);else if(mqEscuro.addListener)mqEscuro.addListener(muda);}
+document.addEventListener('click',function(e){var b=e.target.closest('[data-tema-set]');if(b)setTema(b.dataset.temaSet);});
 document.addEventListener('click',function(e){var b=e.target.closest('[data-zoom]');if(b)setZoom(+b.dataset.zoom);
   if(e.target.closest('[data-olho]')){grava('central-ocultar',!ler('central-ocultar',false));pintaInicio();var n=document.querySelector('[data-olho]');if(n)n.focus();}});
 
@@ -303,14 +320,16 @@ function cFinancas(){var r=RES.financas,h='',oc=!!ler('central-ocultar',false);
 function pintaInicio(){var el=document.getElementById('inicio');if(!el)return;var d=new Date(),hr=d.getHours();
   el.innerHTML='<div class="topo"><div><p class="data">'+d.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})+'</p><h1 class="ola" id="tInicio">'+(hr<5?'Boa noite':hr<12?'Bom dia':hr<18?'Boa tarde':'Boa noite')+'</h1></div></div>'+
     '<div class="grid">'+cTimesheet()+cTreino()+cFinancas()+'</div>'+
-    '<section class="ajustes" aria-labelledby="tAj"><div><h2 id="tAj">Tamanho do texto</h2><p>Vale para a Central e para os três apps.</p></div><div class="seg" role="group" aria-labelledby="tAj">'+
+    '<section class="ajustes" aria-labelledby="tAp"><div><h2 id="tAp">Aparência</h2><p>Vale para a Central e para os três apps.</p></div><div class="seg" role="group" aria-labelledby="tAp">'+
+    TEMAS.map(function(t){return '<button data-tema-set="'+t[0]+'" aria-pressed="'+(tema===t[0])+'">'+t[1]+'</button>';}).join('')+'</div></section>'+
+    '<section class="ajustes" style="margin-top:10px" aria-labelledby="tAj"><div><h2 id="tAj">Tamanho do texto</h2><p>Vale para a Central e para os três apps.</p></div><div class="seg" role="group" aria-labelledby="tAj">'+
     ZOOMS.map(function(z){return '<button data-zoom="'+z[0]+'" aria-pressed="'+(zoom===z[0])+'" aria-label="Texto '+ZNOME[z[0]]+'" style="font-size:'+(.85*z[0])+'rem">'+z[1]+'</button>';}).join('')+'</div></section>';}
 // relógio do cronômetro ao vivo
 setInterval(function(){if(atual!=='inicio')return;document.querySelectorAll('[data-relogio]').forEach(function(b){b.textContent=hms((Date.now()-(+b.dataset.relogio))/1000-(+b.dataset.pausa||0));});},1000);
 var dia=new Date().toDateString();setInterval(function(){if(new Date().toDateString()!==dia){dia=new Date().toDateString();if(atual==='inicio')pintaInicio();}},60000);
 
 /* ---------- começar ---------- */
-rota();
+aplicaTema();rota();
 // carrega os apps em segundo plano: o Início recebe os resumos atualizados e abrir cada um fica instantâneo
 setTimeout(function(){['timesheet','treino','financas'].forEach(function(k,i){setTimeout(function(){frame(k);},i*600);});},500);
 })();
