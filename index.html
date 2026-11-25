@@ -357,6 +357,23 @@ async function flush(){
 }
 function commit(){save();render();}
 function isEmpty(d){return !d.lanc.length&&!d.clientes.length&&!d.ativo&&!(d.dem||[]).length;}
+/* login: junta o que está neste aparelho com o que está na conta, para nada se perder.
+   Itens com o mesmo id ficam na versão da conta; os que só existem no aparelho são acrescentados.
+   Antes, guarda uma cópia do que estava no aparelho em <LS_KEY>-backup. */
+function juntar(r,l){
+  if(Array.isArray(r)&&Array.isArray(l)){var tudo=r.concat(l);
+    if(tudo.length&&tudo.every(function(x){return x&&typeof x==='object'&&x.id!=null;})){var ids={};r.forEach(function(x){ids[x.id]=1;});return r.concat(l.filter(function(x){return !ids[x.id];}));}
+    if(tudo.length&&tudo.every(function(x){return typeof x==='string';})){var u=r.slice();l.forEach(function(x){if(u.indexOf(x)<0)u.push(x);});return u;}
+    return r.length?r:l;}
+  if(r&&l&&typeof r==='object'&&typeof l==='object'&&!Array.isArray(r)&&!Array.isArray(l)){var o={};
+    Object.keys(r).forEach(function(k){o[k]=Object.prototype.hasOwnProperty.call(l,k)?juntar(r[k],l[k]):r[k];});
+    Object.keys(l).forEach(function(k){if(!Object.prototype.hasOwnProperty.call(r,k))o[k]=l[k];});return o;}
+  return (r==null||r==='')?l:r;}
+function entrarJuntando(remote,vazio){
+  if(!S||vazio(S)){S=remote;writeLocal();return S;}
+  try{localStorage.setItem(LS_KEY+'-backup',JSON.stringify({em:Date.now(),dados:S}));}catch(e){}
+  var j=migrate(juntar(remote,JSON.parse(JSON.stringify(S))))||remote,mudou=JSON.stringify(j)!==JSON.stringify(remote);
+  S=j;writeLocal();if(mudou)flush();return S;}
 function initCloud(){
   if(!window.FB)return;
   FB.onUser(function(u){
@@ -367,7 +384,7 @@ function initCloud(){
     cloud.unsub=FB.watch(u.uid,APP_ID,function(snap){
       if(snap.metadata.hasPendingWrites)return;
       var remote=null;if(snap.exists()){try{remote=migrate(JSON.parse((snap.data()||{}).estado));}catch(e){}}
-      if(first){first=false;store={kind:'cloud'};if(remote){S=remote;writeLocal();}else if(!isEmpty(S))flush();setStatus('Sincronizado com a sua conta');render();return;}
+      if(first){first=false;store={kind:'cloud'};if(remote){S=entrarJuntando(remote,isEmpty);}else if(!isEmpty(S))flush();setStatus('Sincronizado com a sua conta');render();return;}
       if(remote){S=remote;writeLocal();render();setStatus('Sincronizado com a sua conta');}
     },function(){store={kind:'local'};setStatus('Sem acesso à conta: salvo neste aparelho');});
   });
