@@ -289,7 +289,7 @@ function cTimesheet(){var r=RES.timesheet,h='';
   if(r.ativo){var s=(Date.now()-r.ativo.ini)/1000-r.ativo.pausaSeg;
     h+=faixa('viva',r.ativo.pausado?'timesheet':'pulso',(r.ativo.pausado?'Cronômetro em pausa':'Cronômetro ligado · <b data-relogio="'+r.ativo.ini+'" data-pausa="'+r.ativo.pausaSeg+'">'+hms(s)+'</b>')+'<br><span style="font-weight:500;color:var(--muted)">'+esc(r.ativo.titulo)+'</span>');}
   h+='<div><div class="lbl">Horas hoje</div><div class="big">'+hm(min)+(r.meta?'<small>de '+hm(r.meta)+'</small>':'')+'</div>'+(r.meta?barra(min,r.meta,'Horas de hoje em relação à meta'):'')+'</div>';
-  h+='<div class="mini"><div><b>'+r.comigo+'</b><span>com você</span></div><div><b>'+r.esperando+'</b><span>esperando alguém</span></div></div>';
+  h+='<div class="mini" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div><b>'+r.comigo+'</b><span>com você</span></div><div><b>'+r.esperando+'</b><span>com cliente ou colega</span></div><div><b>'+(r.junta||0)+'</b><span>na Junta</span></div></div>';
   if(r.alertas&&r.alertas.length)h+='<div><div class="lbl">Pedem atenção · '+r.nAlertas+'</div><ul class="lista">'+r.alertas.map(function(a){return '<li><span class="n">'+esc(a.t)+'<span>'+esc(a.c)+'</span></span><span class="selo '+(a.red?'red':'amb')+'">'+esc(a.a)+'</span></li>';}).join('')+'</ul></div>';
   else h+=faixa('ok','ok','Nenhuma tarefa pedindo atenção.');
   if(r.espaider)h+='<p class="vazio" style="font-size:.85rem">'+r.espaider+' lançamento'+(r.espaider>1?'s':'')+' ainda não '+(r.espaider>1?'estão':'está')+' no Espaider.</p>';
