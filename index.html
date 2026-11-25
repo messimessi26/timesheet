@@ -539,6 +539,12 @@ function vRadar(){
   var urg=function(l){return l.sort(function(a,b){var x=alertas(a).some(function(q){return q.n==='red';})?0:1,y=alertas(b).some(function(q){return q.n==='red';})?0:1;return x-y;});};
   var at=demAtivas().filter(vis),comigo=at.filter(function(d){return !espera(d);}),aguard=at.filter(espera),conc=all.filter(function(d){return d.status==='concluido'&&vis(d);});
   var h=hdr('Tarefas','','')+runBar();
+  if(ui.importar){var li=ui.importar,novas=li.filter(function(x){return !jaExiste(x);}).length;
+    h+='<section class="card" style="border:2px solid var(--acc)"><h2>Recebi '+li.length+' tarefa'+(li.length>1?'s':'')+' pelo link</h2><div class="small">Confira a lista e toque em Adicionar. Clientes que ainda não existem são criados; tarefas que já existem são puladas.</div>'+
+      '<div class="tbox" style="box-shadow:none;padding:0">'+li.map(function(x){var onde=espera({status:x.status})?ondeTxt(x):stI(x.status).nome;
+        return '<div class="trow"><span class="tmain" style="cursor:default"><span class="t1">'+esc(x.titulo)+'</span><span class="t2">'+esc((x.cliente||'Sem cliente')+' · '+onde+(x.prazo?' · prazo '+fmtD(x.prazo):''))+'</span>'+
+          (x.nota?'<span class="t2">'+esc(x.nota)+'</span>':'')+(jaExiste(x)?'<span class="aviso amb">Já existe, será pulada</span>':'')+'</span></div>';}).join('')+'</div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">'+(novas?'<button class="btn primary" data-act="impOk">Adicionar '+novas+' tarefa'+(novas>1?'s':'')+'</button>':'')+'<button class="btn" data-act="impNo">'+(novas?'Cancelar':'Fechar')+'</button></div></section>';}
   h+='<section class="card"><div class="qa"><input class="in" id="qaTit" placeholder="Nova tarefa (ex.: parecer sobre contrato X)" aria-label="Nova tarefa" autocomplete="off"><select class="in" data-qa="cliente" aria-label="Cliente da nova tarefa">'+cliOptions(ui.qaCli,'Sem cliente')+'</select><button class="btn primary" data-act="qaAdd">Adicionar</button></div></section>';
   var cids={};all.forEach(function(d){cids[d.cliente||'_']=1;});var ck=Object.keys(cids);
   h+='<div class="tabsrow"><div class="seg" role="group" aria-label="Mostrar">'+[['comigo','Comigo',comigo.length],['aguardando','Esperando',aguard.length],['concluidas','Concluídas',conc.length]].map(function(x){return '<button data-act="aba" data-k="'+x[0]+'" aria-pressed="'+(aba===x[0])+'">'+x[1]+' <span class="small">'+x[2]+'</span></button>';}).join('')+'</div>'+
@@ -710,7 +716,29 @@ function vPerfil(){var c=S.cfg;
 
 /* ---------- roteamento ---------- */
 var TABS=[['hoje','Hoje','<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/>'],['radar','Tarefas','<path d="M9 6h11M9 12h11M9 18h11"/><path d="M3.5 6l1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17"/>'],['semana','Semana','<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>'],['relatorios','Relatórios','<path d="M3 20h18M6 16v-5M11 16V8M16 16v-3M21 16V5"/>'],['cadastros','Cadastros','<path d="M4 6h16M4 12h16M4 18h10"/>'],['perfil','Perfil','<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>']];
-function parseHash(){var h=(location.hash||'').slice(1);R={v:TABS.some(function(t){return t[0]===h;})?h:'hoje'};}
+function parseHash(){if(lerLinkTarefas()){R={v:'radar'};return;}var h=(location.hash||'').slice(1);R={v:TABS.some(function(t){return t[0]===h;})?h:'hoje'};}
+/* link para adicionar várias tarefas de uma vez: #add/<JSON codificado>
+   {"t":[{"titulo":"...","cliente":"Nome do cliente","status":"fazer|andamento|cliente|colega|junta","com":"...","prazo":"AAAA-MM-DD",
+          "desde":"AAAA-MM-DD","follow":"AAAA-MM-DD","junta":"JUCISRS","prot":"...","exig":true,"prio":"alta","nota":"..."}]}
+   Mostra a lista para conferir; só adiciona quando a pessoa confirma. */
+function lerLinkTarefas(){var raw=(location.hash||'').slice(1);if(raw.indexOf('add/')!==0)return false;
+  try{var o=JSON.parse(decodeURIComponent(raw.slice(4))),l=(Array.isArray(o)?o:o.t||[]).filter(function(x){return x&&String(x.titulo||'').trim();});if(l.length){ui.importar=l;ui.aba='comigo';}}
+  catch(e){alert('Não consegui ler o link de tarefas. Peça um link novo.');}
+  try{history.replaceState(null,'',location.pathname+location.search+'#radar');}catch(e){}
+  return true;}
+function clientePorNome(nome){nome=String(nome||'').trim();if(!nome)return '';var c=S.clientes.find(function(x){return x.nome.trim().toLowerCase()===nome.toLowerCase();});
+  if(c)return c.id;c={id:uid(),nome:nome,cor:CORES[S.clientes.length%CORES.length],valor:0};S.clientes.push(c);return c.id;}
+function jaExiste(x){var cl=String(x.cliente||'').trim().toLowerCase(),t=String(x.titulo).trim().toLowerCase();
+  return (S.dem||[]).some(function(d){return (d.titulo||'').trim().toLowerCase()===t&&(d.cliente?cliNome(d.cliente).trim().toLowerCase():'')===cl;});}
+function importarTarefas(){var n=0;S.dem=S.dem||[];
+  (ui.importar||[]).forEach(function(x){if(jaExiste(x))return;
+    var st=STS.some(function(s){return s[0]===x.status;})?x.status:'andamento';
+    var d={id:uid(),titulo:String(x.titulo).trim(),cliente:clientePorNome(x.cliente),projeto:'',status:'andamento',prio:['alta','normal','baixa'].indexOf(x.prio)>-1?x.prio:'normal',
+      prazo:x.prazo||'',follow:'',com:x.com||'',junta:x.junta||'',prot:x.prot||'',exig:!!x.exig,criado:TODAY,hist:[{d:TODAY,k:'st',s:'andamento',t:'Tarefa criada'}]};
+    S.dem.push(d);if(st!=='andamento')setSt(d,st);
+    if(x.desde&&espera(d)){d.desde=x.desde;if(!x.follow)d.follow=addDays(TODAY,0)>addDays(x.desde,d.status==='colega'?3:d.status==='junta'?5:7)?TODAY:addDays(x.desde,d.status==='colega'?3:d.status==='junta'?5:7);}
+    if(x.follow)d.follow=x.follow;if(x.nota)d.hist.push({d:TODAY,k:'nota',t:String(x.nota)});n++;});
+  ui.importar=null;commit();return n;}
 function render(){
   TODAY=today();
   var nAl=S?radarAlertas().length:0;
@@ -881,6 +909,8 @@ document.addEventListener('click',function(e){
     save();if(dlgD.open)renderDem();render();
     if(a==='stDem'&&t.dataset.k==='colega'&&!dd0.com)refocus('demCom');return;
   case 'qaAdd':qaAdd();return;
+  case 'impOk':var ni=importarTarefas();alert(ni+' tarefa'+(ni===1?' adicionada':'s adicionadas')+(cloud.uid?' e salvas na sua conta.':'. Entre na sua conta (Perfil) para salvar também na nuvem.'));return;
+  case 'impNo':ui.importar=null;render();return;
   case 'aba':ui.aba=t.dataset.k;render();return;
   case 'delDem':var dd1=demById(demAberta);if(!dd1)return;var nl=S.lanc.filter(function(x){return x.dem===dd1.id;}).length;
     if(confirm('Excluir a tarefa “'+(dd1.titulo||'Sem título')+'”?'+(nl?' Os '+nl+' lançamentos de horas continuam no timesheet.':''))){S.dem=S.dem.filter(function(x){return x.id!==dd1.id;});S.lanc.forEach(function(x){if(x.dem===dd1.id)x.dem='';});if(S.ativo&&S.ativo.dem===dd1.id)S.ativo.dem='';if(ui.f.dem===dd1.id)ui.f.dem='';demAberta=null;fecharDem();}return;
