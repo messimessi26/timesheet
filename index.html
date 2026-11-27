@@ -210,6 +210,8 @@ dialog.wide{width:min(620px,calc(100% - 20px));max-height:calc(100dvh - 30px)}
 .aviso.amb{color:var(--st2)}
 .urg{color:var(--red);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-right:6px}
 .chev{color:var(--muted);flex-shrink:0}
+.hq{display:flex;flex-direction:column;gap:10px;background:var(--soft);border-radius:16px;padding:12px;margin-bottom:6px}
+.hq .fields{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
 .secao{font-size:12px;font-weight:700;color:var(--muted);margin:0 0 8px;text-transform:uppercase;letter-spacing:.05em}
 .opts{display:grid;grid-template-columns:1fr;gap:6px}
 @media (min-width:520px){.opts{grid-template-columns:1fr 1fr}}
@@ -370,8 +372,10 @@ function demRow(d){var al=alertas(d),m=demMin(d.id),info=[],r='';
   return '<div class="trow"><button class="tmain" data-act="abrirDem" data-id="'+d.id+'"><span class="t1">'+(d.prio==='alta'&&d.status!=='concluido'?'<span class="urg">Urgente</span>':'')+esc(d.titulo||'Sem título')+'</span>'+
     '<span class="t2"><i class="cdot" style="background:'+cliCor(d.cliente)+'"></i>'+esc(cliNome(d.cliente))+(info.length?' · '+info.join(' · '):'')+'</span>'+
     (av?'<span class="aviso '+av.n+'">'+esc(av.t)+(al.length>1?' (+'+(al.length-1)+')':'')+'</span>':'')+'</button>'+r+'</div>';}
-function demOptions(sel){var l=demAtivas();if(sel&&!l.some(function(d){return d.id===sel;})){var x=demById(sel);if(x)l.push(x);}
-  return '<option value="">Sem tarefa</option>'+l.map(function(d){return '<option value="'+d.id+'"'+(d.id===sel?' selected':'')+'>'+esc((d.titulo||'Sem título')+(d.cliente?' · '+cliNome(d.cliente):''))+'</option>';}).join('');}
+// todas as tarefas, inclusive as concluídas (no fim), para dar para lançar horas atrasadas
+function demOptions(sel){var op=function(d){return '<option value="'+d.id+'"'+(d.id===sel?' selected':'')+'>'+esc((d.titulo||'Sem título')+(d.cliente?' · '+cliNome(d.cliente):''))+'</option>';},
+  conc=(S.dem||[]).filter(function(d){return d.status==='concluido';}).sort(function(a,b){return (b.concluidoEm||'')<(a.concluidoEm||'')?-1:1;});
+  return '<option value="">Sem tarefa</option>'+demAtivas().map(op).join('')+(conc.length?'<optgroup label="Concluídas">'+conc.map(op).join('')+'</optgroup>':'');}
 
 /* ---------- armazenamento: navegador + Firebase ---------- */
 var LS_KEY='meu-timesheet-v1',APP_ID='timesheet';
@@ -476,7 +480,7 @@ function ativOptions(sel){return '<option value="">Atividade…</option>'+S.ativ
 function lancLi(l,opts){opts=opts||{};
   return '<li><i class="stripe" style="background:'+cliCor(l.cliente)+'"></i><span class="n"><b>'+esc(lancTitulo(l))+'</b><span>'+[opts.data?fmtD(l.data):'',l.ini?l.ini+(l.fim?'–'+l.fim:''):'',l.ativ||'',l.desc||'',l.fat?'':'não faturável'].filter(Boolean).map(esc).join(' · ')+'</span>'+
     ((l.dem&&demById(l.dem))||l.esp?'<span class="tags" style="margin-top:4px">'+(l.dem&&demById(l.dem)?'<span class="tag acc">📌 '+esc(demTit(l.dem))+'</span>':'')+(l.esp?'<span class="tag ok">✓ no Espaider</span>':'')+'</span>':'')+'</span><span class="v">'+hm(l.min)+'</span>'+
-    (opts.noAct?'':'<button class="ib" data-act="continuar" data-id="'+l.id+'" aria-label="Continuar: iniciar cronômetro com os mesmos dados" title="Continuar">'+PLAY+'</button><button class="ib" data-act="editar" data-id="'+l.id+'" aria-label="Editar lançamento">'+PEN+'</button>')+'</li>';}
+    (opts.soEditar?'<button class="ib" data-act="editar" data-id="'+l.id+'" aria-label="Editar lançamento">'+PEN+'</button>':opts.noAct?'':'<button class="ib" data-act="continuar" data-id="'+l.id+'" aria-label="Continuar: iniciar cronômetro com os mesmos dados" title="Continuar">'+PLAY+'</button><button class="ib" data-act="editar" data-id="'+l.id+'" aria-label="Editar lançamento">'+PEN+'</button>')+'</li>';}
 function metaBar(min,meta){var p=meta>0?Math.min(min/meta*100,100):0;return '<div class="bar"><div style="width:'+p+'%;background:'+(min>=meta?'var(--ok)':'var(--acc)')+'"></div></div>';}
 
 /* ---------- telas ---------- */
@@ -579,7 +583,17 @@ function renderDem(){var d=demById(demAberta);if(!d){if(dlgD.open)dlgD.close();r
       '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="cobreiDem">'+(jt?'Verifiquei hoje':'Cobrei hoje')+'</button>'+
         (jt?'<button class="btn primary" data-act="stDem" data-k="concluido" data-nota="Registrado na Junta">Registrado</button>':'<button class="btn primary" data-act="retornoDem">Voltou para mim</button>')+'</div></div>';}
   else if(d.status!=='concluido')h+='<div><button class="btn primary" data-act="trabDem" data-id="'+d.id+'">'+PLAY+' Começar cronômetro nesta tarefa</button></div>';
-  // 3) dados da tarefa
+  // 3) horas: lançar sem cronômetro (data, tempo, atividade do Espaider, descrição) e ver/editar o que já foi lançado
+  var ultAtiv=(ls.find(function(x){return x.ativ;})||{}).ativ||ui.f.ativ||'';
+  h+='<div><div class="secao">Horas nesta tarefa: <span style="color:var(--text)">'+hm(m)+'</span>'+(ls.length?' em '+ls.length+' lançamento'+(ls.length===1?'':'s'):'')+'</div>'+
+    '<div class="hq"><div class="fields"><label class="field">Data<input type="date" id="hqData" value="'+TODAY+'"></label>'+
+      '<label class="field">Tempo<input type="text" id="hqDur" placeholder="1:30" inputmode="text" autocomplete="off"><span class="hint">1:30, 1,5 ou 90m</span></label>'+
+      '<label class="field">Atividade<select id="hqAtiv">'+ativOptions(ultAtiv)+'</select></label></div>'+
+      '<div class="chips" role="group" aria-label="Tempo rápido">'+[[15,'15 min'],[30,'30 min'],[60,'1h'],[90,'1h30'],[120,'2h']].map(function(x){return '<button class="chip" style="padding:6px 12px;font-size:13px" data-act="hqMin" data-min="'+x[0]+'">'+x[1]+'</button>';}).join('')+'</div>'+
+      '<label class="field">Descrição<input type="text" id="hqDesc" list="dlDesc" value="'+esc(d.titulo||'')+'"></label>'+
+      '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><label class="chk"><input type="checkbox" id="hqFat" checked> Faturável</label><button class="btn primary" data-act="hqAdd" style="margin-left:auto">Lançar horas</button></div></div>'+
+    (ls.length?'<ul class="list">'+ls.slice(0,8).map(function(x){return lancLi(x,{data:true,soEditar:true});}).join('')+'</ul>'+(ls.length>8?'<div class="small">+ '+(ls.length-8)+' mais antigos (veja em Relatórios)</div>':''):'')+'</div>';
+  // 4) dados da tarefa
   h+='<div><div class="secao">Detalhes</div><div class="fields"><label class="field">Cliente<select data-df="cliente">'+cliOptions(d.cliente)+'</select></label><label class="field">Projeto / caso<select data-df="projeto">'+projOptions(d.cliente,d.projeto)+'</select></label>'+
     '<label class="field">Prazo<input type="date" data-df="prazo" value="'+esc(d.prazo||'')+'"></label>'+
     '<label class="field">Prioridade<select data-df="prio">'+PRIO.map(function(p){return '<option value="'+p[0]+'"'+((d.prio||'normal')===p[0]?' selected':'')+'>'+p[1]+'</option>';}).join('')+'</select></label>'+
@@ -587,8 +601,6 @@ function renderDem(){var d=demById(demAberta);if(!d){if(dlgD.open)dlgD.close();r
   var hist=(d.hist||[]).map(function(x,i){x._i=i;return x;}).slice().reverse();
   h+='<div><div class="secao">Andamento</div><div class="addnote"><input class="in" id="demNota" placeholder="O que aconteceu? Ex.: cliente pediu ajuste na cláusula 5" aria-label="Nova anotação"><button class="btn" data-act="notaDem">Anotar</button></div></div>'+
     (hist.length?'<ul class="timeline">'+hist.map(function(x){var c=x.k==='st'?stI(x.s).cor:'var(--muted)';return '<li class="'+(x.k==='st'?'st':'')+'" style="--c:'+c+'"><span class="tx"><small>'+fmtD(x.d,true)+'</small>'+esc(x.t)+'</span>'+(x.k==='nota'?'<button class="ib" style="width:28px;height:28px" data-act="delNota" data-i="'+x._i+'" aria-label="Apagar anotação">×</button>':'')+'</li>';}).join('')+'</ul>':'<div class="small">Sem anotações ainda.</div>');
-  h+='<div><div class="secao">Horas nesta tarefa: <span style="color:var(--text)">'+hm(m)+'</span>'+(ls.length?' em '+ls.length+' lançamento'+(ls.length===1?'':'s'):'')+'</div>'+
-    (ls.length?'<ul class="list">'+ls.slice(0,6).map(function(x){return lancLi(x,{data:true,noAct:true});}).join('')+'</ul>'+(ls.length>6?'<div class="small">+ '+(ls.length-6)+' mais antigos</div>':''):'<div class="small" style="margin-top:6px">Use “Trabalhar nisso” para o cronômetro já lançar as horas nesta tarefa.</div>')+'</div>';
   h+='<div class="actions" style="display:flex;justify-content:space-between;gap:8px"><button class="btn ghost" data-act="delDem" style="color:var(--warn)">Excluir tarefa</button><button class="btn" data-act="fecharDem">Fechar</button></div>';
   dlgDB.innerHTML=h;}
 // ao fechar: demanda sem título e sem nada anotado é descartada; com anotações/horas vira "Sem título"
@@ -605,6 +617,16 @@ function qaAdd(){var el=document.getElementById('qaTit');if(!el)return;var t=el.
   S.dem=S.dem||[];S.dem.push({id:uid(),titulo:t,cliente:cid,projeto:'',status:'andamento',prio:'normal',prazo:'',follow:'',com:'',criado:TODAY,hist:[{d:TODAY,k:'st',s:'andamento',t:'Tarefa criada'}]});
   if(ui.aba!=='comigo')ui.aba='comigo';commit();refocus('qaTit');}
 document.addEventListener('keydown',function(e){if(e.key==='Enter'&&e.target&&e.target.id==='qaTit'){e.preventDefault();qaAdd();}});
+// lançar horas na tarefa sem usar o cronômetro
+function hqAdd(){var d=demById(demAberta);if(!d)return;var g=function(id){return document.getElementById(id);};
+  var min=parseDur(g('hqDur').value),desc=g('hqDesc').value.trim(),ativ=g('hqAtiv').value,data=g('hqData').value||TODAY;
+  if(!(min>0)){alert('Informe o tempo (ex.: 1:30, 1,5 ou 90m).');g('hqDur').focus();return;}
+  if(!desc){alert('Escreva uma descrição: ela é obrigatória no time-sheet do Espaider.');g('hqDesc').focus();return;}
+  if(!ativ&&!confirm('Sem atividade. No Espaider a atividade é obrigatória. Lançar assim mesmo?'))return;
+  S.lanc.push({id:uid(),data:data,ini:'',fim:'',min:Math.round(min),cliente:d.cliente||'',projeto:d.projeto||'',ativ:ativ,desc:desc,fat:g('hqFat').checked,dem:d.id});
+  if(d.status==='fazer')setSt(d,'andamento','Comecei a trabalhar');
+  if(ativ)ui.f.ativ=ativ;save();renderDem();render();refocus('hqDur');}
+dlgD.addEventListener('keydown',function(e){if(e.key==='Enter'&&(e.target.id==='hqDur'||e.target.id==='hqDesc')){e.preventDefault();hqAdd();}});
 function addNota(){var d=demById(demAberta),el=document.getElementById('demNota');if(!d||!el)return;var t=el.value.trim();if(!t)return;d.hist=d.hist||[];d.hist.push({d:TODAY,k:'nota',t:t});save();renderDem();render();refocus('demNota');}
 function trabDem(id){var d=demById(id);if(!d)return;if(S.ativo){alert('Já tem um cronômetro ligado. Pare ele primeiro.');return;}
   fecharDem();
@@ -850,6 +872,8 @@ form.addEventListener('input',function(e){var n=e.target.name,g=function(k){retu
 form.addEventListener('change',function(e){if(e.target.name==='cliente')form.querySelector('[name=projeto]').innerHTML=projOptions(e.target.value,'');
   if(e.target.name==='dem'){var dm=demById(e.target.value);if(!dm)return;form.querySelector('[name=cliente]').value=dm.cliente||'';form.querySelector('[name=projeto]').innerHTML=projOptions(dm.cliente,dm.projeto);var de=form.querySelector('[name=desc]');if(!de.value.trim())de.value=dm.titulo||'';}});
 // salva no envio do formulário (mais confiável que o evento "close" em todos os navegadores)
+// editou um lançamento a partir da janela da tarefa: atualiza a janela
+dlg.addEventListener('close',function(){if(dlgD.open)renderDem();});
 form.addEventListener('submit',function(e){
   var rv=e.submitter?e.submitter.value:'ok';
   if(rv==='del'&&editId){if(confirm('Excluir este lançamento?')){S.lanc=S.lanc.filter(function(x){return x.id!==editId;});commit();}else e.preventDefault();return;}
@@ -909,6 +933,8 @@ document.addEventListener('click',function(e){
     save();if(dlgD.open)renderDem();render();
     if(a==='stDem'&&t.dataset.k==='colega'&&!dd0.com)refocus('demCom');return;
   case 'qaAdd':qaAdd();return;
+  case 'hqMin':var hd=document.getElementById('hqDur');if(hd){hd.value=hhmm(+t.dataset.min);hd.focus();}return;
+  case 'hqAdd':hqAdd();return;
   case 'impOk':var ni=importarTarefas();alert(ni+' tarefa'+(ni===1?' adicionada':'s adicionadas')+(cloud.uid?' e salvas na sua conta.':'. Entre na sua conta (Perfil) para salvar também na nuvem.'));return;
   case 'impNo':ui.importar=null;render();return;
   case 'aba':ui.aba=t.dataset.k;render();return;
